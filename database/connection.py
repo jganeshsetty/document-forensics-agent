@@ -1,4 +1,5 @@
 import os
+import certifi
 from typing import Optional
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase, AsyncIOMotorCollection
 from dotenv import load_dotenv
@@ -16,7 +17,12 @@ async def connect_to_mongo():
     if not MONGO_URI:
         raise ValueError("MONGO_URI environment variable is not configured.")
     
-    client = AsyncIOMotorClient(MONGO_URI)
+    # Use certifi.where() to provide trusted CA root certificates for SSL/TLS on Windows
+    client = AsyncIOMotorClient(
+        MONGO_URI,
+        tlsCAFile=certifi.where(),
+        serverSelectionTimeoutMS=10000,
+    )
     db = client["forensics_db"]
     documents_collection = db["documents"]
     # Verify the connection with a ping
@@ -32,4 +38,3 @@ def get_database() -> Optional[AsyncIOMotorDatabase]:
 
 def get_documents_collection() -> Optional[AsyncIOMotorCollection]:
     return documents_collection
-

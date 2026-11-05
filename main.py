@@ -15,6 +15,7 @@ from database.connection import (
 from services.extraction_service import (
     extract_document_features,
     classify_document,
+    generate_layout_fingerprint,
 )
 
 # Ensure uploads directory exists
@@ -111,16 +112,14 @@ async def test_db_insert(payload: Optional[DummyDocument] = None):
 
 @app.post("/extract", status_code=status.HTTP_201_CREATED, tags=["Extraction"])
 async def extract_document(file: UploadFile = File(...)):
-    """Processes an uploaded document with robust computer vision preprocessing:
+    """Processes an uploaded document with deep metadata extraction & layout fingerprinting:
 
     - Saves original image into local /uploads directory with a unique path
-    - Inverts dark documents dynamically
-    - Upscales 2x using bicubic interpolation for fine fonts
-    - Binarizes preserving thin strokes (blockSize=15, C=4)
-    - Performs OCR with PyTesseract (--psm 11) to avoid column blending
-    - Groups text line-by-line without discarding data
-    - Classifies document type
-    - Stores the document into MongoDB forensics_db.documents with line-level entities and tight bounding boxes.
+    - Extracts deep line metadata: font_size, text_type, alignment, vertical_spacing, pixel_intensity
+    - Detects non-text structural symbols (Signature, Logo, Stamp) using OpenCV contour shape analysis
+    - Generates resolution-invariant layout_fingerprint and hashed template_signature
+    - Compares template_signature against previously stored documents to flag matched_template: true/false
+    - Stores the record into MongoDB forensics_db.documents and returns the formatted response.
     """
     collection = get_documents_collection()
     if collection is None:
@@ -160,7 +159,7 @@ async def extract_document(file: UploadFile = File(...)):
             content={"error": f"Failed to save image to disk: {str(e)}"},
         )
 
-    # 3. Robust Computer Vision & Line-Level OCR Extraction
+    # 3. Robust Computer Vision & Deep Metadata Extraction
     try:
         ocr_result = extract_document_features(image_bytes)
     except ValueError as ve:
@@ -176,17 +175,41 @@ async def extract_document(file: UploadFile = File(...)):
 
     raw_text = ocr_result["raw_text"]
     entities = ocr_result["entities"]
+    image_size = ocr_result["image_size"]
 
     # 4. Document Classification
     document_type = classify_document(raw_text)
 
-    # 5. MongoDB Schema Assembly
+    # 5. Phase 2: Layout Fingerprinting & Template Matching
+    layout_data = generate_layout_fingerprint(entities, image_size)
+    template_sig = layout_data["template_signature"]
+
+    # Check MongoDB for previously saved documents with the same template_signature
+    matched_template = False
+    matched_document_id = None
+    try:
+        existing_doc = await collection.find_one(
+            {"template_signature": template_sig},
+            projection={"document_id": 1, "document_type": 1}
+        )
+        if existing_doc:
+            matched_template = True
+            matched_document_id = existing_doc.get("document_id")
+    except Exception as e:
+        print(f"Warning: Template match query failed: {e}")
+
+    # 6. MongoDB Schema Assembly
     mongo_document = {
         "document_id": unique_id,
         "file_path": file_path,
         "document_type": document_type,
         "raw_text": raw_text,
         "entities": entities,
+        "layout_fingerprint": layout_data["normalized_layout"],
+        "template_signature": template_sig,
+        "matched_template": matched_template,
+        "matched_document_id": matched_document_id,
+        "image_size": image_size,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
 

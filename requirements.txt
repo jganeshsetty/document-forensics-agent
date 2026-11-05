@@ -6,3 +6,6 @@ opencv-python-headless
 python-dotenv
 httpx
 pydantic
+python-multipart
+certifi
+pypdfium2

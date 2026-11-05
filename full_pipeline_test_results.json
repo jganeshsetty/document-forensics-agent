@@ -1,0 +1,236 @@
+{
+  "doc1_github_dashboard": {
+    "document_type": "Software Repository / Dashboard",
+    "template_signature": "a5b9ae07cbde4b64",
+    "anchor_count": 18,
+    "total_entities": 35,
+    "image_size": [
+      1024,
+      372
+    ],
+    "is_dark": true,
+    "median_font_size": 14.0,
+    "sample_entities": [
+      {
+        "type": "Text",
+        "text": "(7) | Q Type to search",
+        "bounding_box": [
+          0,
+          0,
+          1024,
+          372
+        ],
+        "confidence": 52.0,
+        "font_size": 372,
+        "text_type": "Heading",
+        "alignment": "center",
+        "vertical_spacing": 0,
+        "pixel_intensity": 23.06
+      },
+      {
+        "type": "Text",
+        "text": "Be?",
+        "bounding_box": [
+          942,
+          4,
+          80,
+          35
+        ],
+        "confidence": 48.0,
+        "font_size": 35,
+        "text_type": "Heading",
+        "alignment": "right",
+        "vertical_spacing": 0,
+        "pixel_intensity": 52.36
+      },
+      {
+        "type": "Text",
+        "text": "(=) C) jaaneshsetty / nasiko_hackwBan ~",
+        "bounding_box": [
+          12,
+          12,
+          274,
+          26
+        ],
+        "confidence": 52.5,
+        "font_size": 26,
+        "text_type": "Heading",
+        "alignment": "left",
+        "vertical_spacing": 0,
+        "pixel_intensity": 31.14
+      },
+      {
+        "type": "Text",
+        "text": "(a|-JI (+",
+        "bounding_box": [
+          731,
+          13,
+          87,
+          24
+        ],
+        "confidence": 6.0,
+        "font_size": 24,
+        "text_type": "Heading",
+        "alignment": "right",
+        "vertical_spacing": 0,
+        "pixel_intensity": 13.53
+      }
+    ]
+  },
+  "doc2_lab_manual": {
+    "document_type": "Academic Lab Manual",
+    "template_signature": "0835046b1258bde4",
+    "anchor_count": 7,
+    "total_entities": 23,
+    "image_size": [
+      1224,
+      1584
+    ],
+    "is_dark": false,
+    "median_font_size": 25.0,
+    "sample_entities": [
+      {
+        "type": "Text",
+        "text": "Lab Manual - Experiment 12: User Personas, User Journeys and Wireframes using Figma",
+        "bounding_box": [
+          92,
+          32,
+          526,
+          12
+        ],
+        "confidence": 94.08,
+        "font_size": 12,
+        "text_type": "Body",
+        "alignment": "left",
+        "vertical_spacing": 0,
+        "pixel_intensity": 224.86
+      },
+      {
+        "type": "Text",
+        "text": "Experiment 12: Designing User Personas, User",
+        "bounding_box": [
+          109,
+          113,
+          1003,
+          48
+        ],
+        "confidence": 96.17,
+        "font_size": 48,
+        "text_type": "Heading",
+        "alignment": "center",
+        "vertical_spacing": 69,
+        "pixel_intensity": 205.2
+      },
+      {
+        "type": "Text",
+        "text": "Journeys and Wireframes using Figma",
+        "bounding_box": [
+          109,
+          169,
+          846,
+          49
+        ],
+        "confidence": 92.4,
+        "font_size": 49,
+        "text_type": "Heading",
+        "alignment": "center",
+        "vertical_spacing": 8,
+        "pixel_intensity": 205.41
+      },
+      {
+        "type": "Text",
+        "text": "Course: Ul/UX Design Lab | Tool: Figma (free Starter plan) | Duration: 2 lab sessions",
+        "bounding_box": [
+          109,
+          261,
+          927,
+          26
+        ],
+        "confidence": 93.0,
+        "font_size": 26,
+        "text_type": "Body",
+        "alignment": "center",
+        "vertical_spacing": 43,
+        "pixel_intensity": 207.02
+      }
+    ]
+  },
+  "doc3_freellmapi_dashboard": {
+    "document_type": "Dashboard Screenshot",
+    "template_signature": "739b3eac1ef0bf79",
+    "anchor_count": 34,
+    "total_entities": 158,
+    "image_size": [
+      1024,
+      662
+    ],
+    "is_dark": true,
+    "median_font_size": 9.0,
+    "sample_entities": [
+      {
+        "type": "Text",
+        "text": "\u2018@.FreeLLMAPI.",
+        "bounding_box": [
+          24,
+          8,
+          88,
+          16
+        ],
+        "confidence": 6.0,
+        "font_size": 16,
+        "text_type": "Heading",
+        "alignment": "left",
+        "vertical_spacing": 0,
+        "pixel_intensity": 64.0
+      },
+      {
+        "type": "Text",
+        "text": "Models =~.",
+        "bounding_box": [
+          146,
+          8,
+          58,
+          16
+        ],
+        "confidence": 51.5,
+        "font_size": 16,
+        "text_type": "Heading",
+        "alignment": "left",
+        "vertical_spacing": 0,
+        "pixel_intensity": 47.88
+      },
+      {
+        "type": "Text",
+        "text": "Playground \u2018Keys",
+        "bounding_box": [
+          233,
+          8,
+          117,
+          24
+        ],
+        "confidence": 83.5,
+        "font_size": 24,
+        "text_type": "Heading",
+        "alignment": "left",
+        "vertical_spacing": 0,
+        "pixel_intensity": 20.99
+      },
+      {
+        "type": "Text",
+        "text": "\u2018Analytics vy",
+        "bounding_box": [
+          440,
+          8,
+          72,
+          24
+        ],
+        "confidence": 62.0,
+        "font_size": 24,
+        "text_type": "Heading",
+        "alignment": "center",
+        "vertical_spacing": 0,
+        "pixel_intensity": 20.52
+      }
+    ]
+  }
+}
