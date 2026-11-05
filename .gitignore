@@ -1,0 +1,28 @@
+# Environment secrets
+.env
+.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# Uploads and temporary test outputs
+uploads/
+debug_output.jpg
+extracted_output.json
+test_results.json
+verified_output_1.jpg
+verified_output_2.jpg
+
+# VS Code settings
+.vscode/
+
+# Operating system / IDE artifacts
+.DS_Store
+Thumbs.db
