@@ -1,0 +1,49 @@
+name: Docker Container Pipeline
+
+on:
+  push:
+    branches: [ master, main ]
+    paths:
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'requirements.txt'
+      - 'main.py'
+      - 'services/**'
+      - '.github/workflows/docker.yml'
+  pull_request:
+    branches: [ master, main ]
+    paths:
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'requirements.txt'
+      - 'main.py'
+      - 'services/**'
+
+jobs:
+  build-and-test-docker:
+    name: Build & Verify Docker Image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Backend Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: docverify-backend:test
+          load: true
+
+      - name: Test Docker Container Run
+        run: |
+          docker run -d --name test-backend -p 8000:8000 docverify-backend:test
+          sleep 5
+          docker ps
+          curl -f http://127.0.0.1:8000/health || (docker logs test-backend && exit 1)
+          docker stop test-backend

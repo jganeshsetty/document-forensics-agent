@@ -9,3 +9,9 @@ pydantic
 python-multipart
 certifi
 pypdfium2
+pymupdf
+groq
+minio
+langchain-text-splitters
+sentence-transformers
+chromadb

@@ -10,7 +10,18 @@ import pytesseract
 from pytesseract import Output
 import httpx
 
-# Configure Tesseract binary and TESSDATA_PREFIX dynamically
+# PII patterns for secure tagging and redaction
+PII_PATTERNS: List[Tuple[str, re.Pattern]] = [
+    ("SSN", re.compile(r'\b\d{3}-?\d{2}-?\d{4}\b')),
+    ("PAN", re.compile(r'\b[A-Z]{5}[0-9]{4}[A-Z]{1}\b')),
+    ("Aadhaar", re.compile(r'\b\d{4}\s?\d{4}\s?\d{4}\b')),
+    ("Email", re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b')),
+    ("Phone", re.compile(r'\b(?:\+91|91|0)?[- ]?\d{10}\b')),
+    ("BankAccount", re.compile(r'\b(?:account|a/c|ac no)\s*:?\s*\d{9,18}\b', re.IGNORECASE)),
+    ("IBAN", re.compile(r'\b[A-Z]{2}\d{2}\s?\d{4}\s?\d{4}\s?\d{4}\s?\d{4}\s?\d{3}\b')),
+]
+
+
 def _configure_tesseract():
     if shutil.which("tesseract"):
         return
@@ -63,9 +74,13 @@ def preprocess_image(image_bytes: bytes):
         interpolation=cv2.INTER_CUBIC,
     )
 
-    # 4. Adaptive Thresholding with fine stroke preservation
+    # 4. Security Pattern Bypass: Morphological Closing to suppress complex background watermark patterns
+    kernel_close = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+    smoothed_bg = cv2.morphologyEx(upscaled, cv2.MORPH_CLOSE, kernel_close)
+
+    # 5. Adaptive Thresholding with fine stroke preservation
     thresh = cv2.adaptiveThreshold(
-        upscaled,
+        smoothed_bg,
         255,
         cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
         cv2.THRESH_BINARY,
@@ -410,6 +425,41 @@ def generate_layout_fingerprint(entities: List[Dict[str, Any]], image_size: List
     }
 
 
+def tag_sensitive_pii(raw_text: str, entities: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Scan extracted text and entities for PII, returning tagged metadata
+    and a redacted version safe for LLM processing."""
+    pii_found: List[Dict[str, Any]] = []
+    redacted_text = raw_text
+
+    for pattern_name, pattern in PII_PATTERNS:
+        matches = list(pattern.finditer(redacted_text))
+        for m in matches:
+            pii_found.append({
+                "type": pattern_name,
+                "text": m.group(),
+                "start": m.start(),
+                "end": m.end(),
+            })
+            redacted_text = redacted_text[:m.start()] + f"[REDACTED_{pattern_name}]" + redacted_text[m.end():]
+
+    for ent in entities:
+        ent_text = ent.get("text", "")
+        for pii in pii_found:
+            clean_pii = pii["text"].replace("-", "").replace(" ", "")
+            clean_ent = ent_text.replace("-", "").replace(" ", "")
+            if pii["text"] in ent_text or clean_pii in clean_ent:
+                ent["pii_tagged"] = True
+                ent["pii_type"] = pii["type"]
+                break
+
+    return {
+        "raw_text": redacted_text,
+        "pii_findings": pii_found,
+        "pii_count": len(pii_found),
+        "entities": entities,
+    }
+
+
 def classify_document(raw_text: str) -> str:
     """Classifies document_type using Groq API (if GROQ_API_KEY is available)
 
@@ -432,7 +482,7 @@ def classify_document(raw_text: str) -> str:
                     "Content-Type": "application/json",
                 },
                 json={
-                    "model": "llama-3.1-8b-instant",
+                    "model": "qwen/qwen3.8-27b",
                     "messages": [{"role": "user", "content": prompt}],
                     "temperature": 0.1,
                     "max_tokens": 20,
@@ -467,3 +517,115 @@ def classify_document(raw_text: str) -> str:
         return "Contract"
 
     return "General Document"
+
+
+def extract_smart_routed_document(file_path: str, max_pages: int = 10) -> Dict[str, Any]:
+    """Smart Routing & Multi-Page Extraction:
+    - If file is a PDF: processes page-by-page using PyMuPDF (fitz).
+      - If page contains native digital text (>= 50 chars), extracts it directly with PyMuPDF.
+      - If page is an image/scanned (or < 50 chars), renders it at 2x and routes to OpenCV/Tesseract.
+    - If file is an image: runs OpenCV/Tesseract directly.
+    Returns: aggregated raw_text, page_records, all_entities, is_multi_page, and total_pages.
+    """
+    import pymupdf
+
+    ext = os.path.splitext(file_path)[1].lower()
+    page_records: List[Dict[str, Any]] = []
+    all_entities: List[Dict[str, Any]] = []
+    all_raw_texts: List[str] = []
+
+    if ext == ".pdf":
+        doc = pymupdf.open(file_path)
+        total_pages = len(doc)
+        pages_to_process = min(total_pages, max_pages)
+        page_width, page_height = 1000, 1000
+
+        for page_idx in range(pages_to_process):
+            page = doc.load_page(page_idx)
+            page_width = int(page.rect.width)
+            page_height = int(page.rect.height)
+            page_num = page_idx + 1
+            native_text = page.get_text("text").strip()
+
+            # Check if page contains extractable digital text
+            if len(native_text) >= 50:
+                # Direct PyMuPDF text extraction
+                blocks = page.get_text("blocks")
+                page_entities: List[Dict[str, Any]] = []
+
+                for b in blocks:
+                    bx0, by0, bx1, by1, btext, bno, btype = b
+                    btext_clean = btext.strip()
+                    if not btext_clean:
+                        continue
+                    bw = int(bx1 - bx0)
+                    bh = int(by1 - by0)
+                    page_entities.append({
+                        "type": "Text",
+                        "text": btext_clean,
+                        "bounding_box": [int(bx0), int(by0), bw, bh],
+                        "confidence": 100.0,
+                        "font_size": bh,
+                        "text_type": "Heading" if bh >= 28 else "Body",
+                        "alignment": "center" if abs((bx0 + bw/2.0) - (page.rect.width/2.0)) < (page.rect.width * 0.15) else "left",
+                        "vertical_spacing": 0,
+                        "pixel_intensity": 0.0,
+                        "page_number": page_num,
+                    })
+
+                all_entities.extend(page_entities)
+                all_raw_texts.append(native_text)
+                page_records.append({
+                    "page_number": page_num,
+                    "extraction_method": "PyMuPDF_native",
+                    "text": native_text,
+                    "entities": page_entities,
+                })
+            else:
+                # Render page to high-res image and route to OpenCV/Tesseract
+                pix = page.get_pixmap(dpi=150)
+                img_bytes = pix.tobytes("png")
+                ocr_result = extract_document_features(img_bytes)
+
+                # Attach page number to entities
+                for ent in ocr_result["entities"]:
+                    ent["page_number"] = page_num
+                    all_entities.append(ent)
+
+                all_raw_texts.append(ocr_result["raw_text"])
+                page_records.append({
+                    "page_number": page_num,
+                    "extraction_method": "OpenCV_Tesseract_OCR",
+                    "text": ocr_result["raw_text"],
+                    "entities": ocr_result["entities"],
+                })
+
+        doc.close()
+        aggregated_text = "\n\n".join(all_raw_texts)
+        return {
+            "is_multi_page": True,
+            "total_pages": total_pages,
+            "processed_pages": pages_to_process,
+            "raw_text": aggregated_text,
+            "entities": all_entities,
+            "pages": page_records,
+            "image_size": [page_width, page_height],
+        }
+    else:
+        # Single image upload
+        with open(file_path, "rb") as f:
+            img_bytes = f.read()
+
+        ocr_result = extract_document_features(img_bytes)
+        for ent in ocr_result["entities"]:
+            ent["page_number"] = 1
+        return {
+            "is_multi_page": False,
+            "total_pages": 1,
+            "processed_pages": 1,
+            "raw_text": ocr_result["raw_text"],
+            "entities": ocr_result["entities"],
+            "pages": [{"page_number": 1, "extraction_method": "OpenCV_Tesseract_OCR", "text": ocr_result["raw_text"], "entities": ocr_result["entities"]}],
+            "image_size": ocr_result["image_size"],
+        }
+

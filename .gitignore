@@ -16,9 +16,19 @@ venv/
 uploads/
 debug_output.jpg
 extracted_output.json
-test_results.json
-verified_output_1.jpg
-verified_output_2.jpg
+test_results*.json
+uploads_investigation_dossier.json
+verified_output_*.jpg
+verified_pipeline_doc*.jpg
+full_pipeline_test_results.json
+
+# Scratch files and temporary archives
+stitch_enterprise_document_forensics_intelligence.zip
+stitch_extracted/
+*.zip
+chroma_db/
+.claude/
+.impeccable/
 
 # VS Code settings
 .vscode/
@@ -26,4 +36,3 @@ verified_output_2.jpg
 # Operating system / IDE artifacts
 .DS_Store
 Thumbs.db
-
