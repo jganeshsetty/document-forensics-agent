@@ -1,5 +1,8 @@
 # officedocuments Enterprise — AI Document Forensics & Tamper Intelligence
 
+> 🌐 **Live Deployed Application**: [https://officedocuments.vercel.app](https://officedocuments.vercel.app)  
+> 🚀 **Live Cloud Run Backend API**: [https://docverify-backend-1024880164701.asia-south1.run.app](https://docverify-backend-1024880164701.asia-south1.run.app)
+
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.109+-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![Next.js](https://img.shields.io/badge/Next.js-16+-black.svg?logo=next.js&logoColor=white)](https://nextjs.org)
 [![Google Cloud Storage](https://img.shields.io/badge/Google_Cloud_Storage-GCS-4285F4.svg?logo=google-cloud&logoColor=white)](https://cloud.google.com/storage)

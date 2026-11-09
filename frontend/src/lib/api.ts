@@ -1,5 +1,27 @@
-const rawApiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-export const API_BASE = rawApiBase.replace(/\/+$/, "");
+function getApiBase(): string {
+  // If explicitly configured and not pointing to localhost, use it
+  if (
+    typeof process !== "undefined" &&
+    process.env.NEXT_PUBLIC_API_URL &&
+    process.env.NEXT_PUBLIC_API_URL.trim() !== "" &&
+    !process.env.NEXT_PUBLIC_API_URL.includes("localhost:8000")
+  ) {
+    return process.env.NEXT_PUBLIC_API_URL.replace(/\/+$/, "");
+  }
+
+  // If in browser on production domain (e.g. officedocuments.vercel.app), dynamically target Cloud Run
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host !== "localhost" && host !== "127.0.0.1") {
+      return "https://docverify-backend-1024880164701.asia-south1.run.app";
+    }
+  }
+
+  // Local development default
+  return (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/+$/, "");
+}
+
+export const API_BASE = getApiBase();
 
 export interface DocumentEntity {
   text: string;

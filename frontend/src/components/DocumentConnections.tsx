@@ -59,6 +59,29 @@ export default function DocumentConnections({
     return null;
   }, [selectedItem, fullDocsMap, docs]);
 
+  const mindmapEntities = useMemo(() => {
+    if (!activeMindmapDoc) return [];
+    if (activeMindmapDoc.entities && activeMindmapDoc.entities.length > 0) {
+      return activeMindmapDoc.entities;
+    }
+    // Fallback: extract entities from pages
+    if (activeMindmapDoc.pages && activeMindmapDoc.pages.length > 0) {
+      const pageEntities = activeMindmapDoc.pages.flatMap((p: any) => p.entities || []);
+      if (pageEntities.length > 0) return pageEntities;
+    }
+    // Fallback: extract from pii_findings
+    if (activeMindmapDoc.pii_findings && activeMindmapDoc.pii_findings.length > 0) {
+      return activeMindmapDoc.pii_findings.map((f: any, idx: number) => ({
+        entity_id: `pii-${idx}`,
+        text: f.value || f.entity_type || "PII Item",
+        text_type: f.entity_type || "Entity",
+        confidence: f.confidence || 0.95,
+        pii_tagged: true,
+      }));
+    }
+    return [];
+  }, [activeMindmapDoc]);
+
   useEffect(() => {
     if (viewMode === "mindmap" && activeMindmapDoc && !fullDocsMap[activeMindmapDoc.document_id]) {
       fetchDocument(activeMindmapDoc.document_id).then((full) => {
@@ -373,13 +396,13 @@ export default function DocumentConnections({
                     </select>
                   </div>
                   <span className="text-[10px] text-zinc-400">
-                    {(activeMindmapDoc?.entities?.length || 0)} entity nodes mapped
+                    {mindmapEntities.length} entity nodes mapped
                   </span>
                 </div>
               )}
               <MindmapView
                 filename={activeMindmapDoc?.filename || "Document"}
-                entities={activeMindmapDoc?.entities || []}
+                entities={mindmapEntities}
               />
             </div>
           ) : loading ? (

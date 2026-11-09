@@ -1,4 +1,6 @@
+import io
 import os
+import re
 import uuid
 import asyncio
 from datetime import datetime, timezone
@@ -194,6 +196,7 @@ async def background_process_document(
         # Build final document record with full multi-page and format metadata
         mongo_document = {
             "document_id": document_id,
+            "job_id": job_id,
             "filename": filename,
             "file_path": file_path,
             "page_image_url": page_img_url,
@@ -517,12 +520,58 @@ async def extract_document(
 @app.get("/jobs/{job_id}", tags=["Jobs"])
 async def get_job_status(job_id: str):
     """Poll the status and extracted results of an asynchronous background job."""
-    if job_id not in jobs_registry:
-        return JSONResponse(
-            status_code=status.HTTP_404_NOT_FOUND,
-            content={"error": f"Job ID '{job_id}' not found."},
-        )
-    return jobs_registry[job_id]
+    if job_id in jobs_registry:
+        return jobs_registry[job_id]
+
+    # Cross-instance Cloud Run fallback: check local DB and MongoDB
+    for doc in list_local_documents():
+        if doc.get("job_id") == job_id or doc.get("document_id") == job_id:
+            return {
+                "job_id": job_id,
+                "document_id": doc.get("document_id"),
+                "status": "completed",
+                "filename": doc.get("filename"),
+                "result": {
+                    "document_id": doc.get("document_id"),
+                    "document_type": doc.get("document_type", "General Document"),
+                    "template_signature": doc.get("template_signature", "UNKNOWN"),
+                    "total_pages": doc.get("total_pages", 1),
+                    "total_entities": len(doc.get("entities", [])),
+                    "total_rag_chunks": doc.get("total_rag_chunks", 0),
+                    "pii_findings_count": len(doc.get("pii_findings", [])),
+                },
+            }
+
+    collection = get_documents_collection()
+    if collection is not None:
+        try:
+            doc = await asyncio.wait_for(
+                collection.find_one({"$or": [{"job_id": job_id}, {"document_id": job_id}]}, {"_id": 0}),
+                timeout=1.5,
+            )
+            if doc:
+                return {
+                    "job_id": job_id,
+                    "document_id": doc.get("document_id"),
+                    "status": "completed",
+                    "filename": doc.get("filename"),
+                    "result": {
+                        "document_id": doc.get("document_id"),
+                        "document_type": doc.get("document_type", "General Document"),
+                        "template_signature": doc.get("template_signature", "UNKNOWN"),
+                        "total_pages": doc.get("total_pages", 1),
+                        "total_entities": len(doc.get("entities", [])),
+                        "total_rag_chunks": doc.get("total_rag_chunks", 0),
+                        "pii_findings_count": len(doc.get("pii_findings", [])),
+                    },
+                }
+        except Exception:
+            pass
+
+    return JSONResponse(
+        status_code=status.HTTP_404_NOT_FOUND,
+        content={"error": f"Job ID '{job_id}' not found."},
+    )
 
 
 @app.get("/documents", tags=["Documents"])

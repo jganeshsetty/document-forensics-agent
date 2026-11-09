@@ -1,0 +1,56 @@
+steps:
+  # Step 1: Build the container image using the Dockerfile
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-image'
+    args:
+      - 'build'
+      - '-t'
+      - 'asia-south1-docker.pkg.dev/project-56c6f335-6901-43fc-9fa/cloud-run-source-deploy/docverify-backend:latest'
+      - '-t'
+      - 'asia-south1-docker.pkg.dev/project-56c6f335-6901-43fc-9fa/cloud-run-source-deploy/docverify-backend:$COMMIT_SHA'
+      - '.'
+
+  # Step 2: Push the image to Google Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-image-latest'
+    args:
+      - 'push'
+      - 'asia-south1-docker.pkg.dev/project-56c6f335-6901-43fc-9fa/cloud-run-source-deploy/docverify-backend:latest'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-image-commit'
+    args:
+      - 'push'
+      - 'asia-south1-docker.pkg.dev/project-56c6f335-6901-43fc-9fa/cloud-run-source-deploy/docverify-backend:$COMMIT_SHA'
+
+  # Step 3: Deploy revision to Cloud Run
+  # Preserves 100% of existing GCP environment variables & secrets without removing or replacing them
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'deploy-cloud-run'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'docverify-backend'
+      - '--image=asia-south1-docker.pkg.dev/project-56c6f335-6901-43fc-9fa/cloud-run-source-deploy/docverify-backend:$COMMIT_SHA'
+      - '--region=asia-south1'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--port=8000'
+      - '--memory=4Gi'
+      - '--cpu=2'
+      - '--timeout=600s'
+      - '--cpu-boost'
+      # Note: Omitting --set-env-vars / --env-vars-file ensures your existing environment variables 
+      # configured directly in the Cloud Run service in GCP are strictly preserved and never overwritten.
+      # If you specifically wish to override/sync from env.yaml, uncomment the line below:
+      # - '--env-vars-file=env.yaml'
+
+images:
+  - 'asia-south1-docker.pkg.dev/project-56c6f335-6901-43fc-9fa/cloud-run-source-deploy/docverify-backend:latest'
+  - 'asia-south1-docker.pkg.dev/project-56c6f335-6901-43fc-9fa/cloud-run-source-deploy/docverify-backend:$COMMIT_SHA'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: '1200s'
