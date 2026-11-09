@@ -1,0 +1,10 @@
+{
+  "admin@docverify.com": {
+    "email": "admin@docverify.com",
+    "hashed_password": "$2b$12$RtuFDxDAPQo7S4h3yKM/euEUjGqCgSXT9bHEqv1ciIPB73wmmNiGC",
+    "full_name": "Forensic Administrator",
+    "role": "Lead Forensic Investigator",
+    "organization": "DocVerify Enterprise Security",
+    "created_at": "2026-11-09T09:37:41.335313+00:00"
+  }
+}

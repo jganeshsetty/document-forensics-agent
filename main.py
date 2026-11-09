@@ -4,16 +4,29 @@ import asyncio
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-from fastapi import FastAPI, File, UploadFile, BackgroundTasks, status, HTTPException
+from fastapi import FastAPI, File, UploadFile, BackgroundTasks, status, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field
 
 from database.connection import (
     connect_to_mongo,
     close_mongo_connection,
     get_documents_collection,
+)
+from services.auth_service import (
+    UserRegister,
+    UserLogin,
+    TokenResponse,
+    hash_password,
+    verify_password,
+    create_access_token,
+    get_user_by_email,
+    save_user,
+    seed_default_admin,
+    get_current_user,
 )
 from services.extraction_service import (
     extract_document_features,
@@ -74,6 +87,11 @@ async def startup_db_client():
         print("Connected to MongoDB successfully.")
     except Exception as e:
         print(f"Notice: MongoDB connection startup alert: {e}")
+
+    try:
+        await seed_default_admin()
+    except Exception as e:
+        print(f"Notice: Admin seed alert: {e}")
 
 
 @app.on_event("shutdown")
@@ -247,6 +265,117 @@ async def health_check():
     return JSONResponse(status_code=status_code, content=response_payload)
 
 
+# ====================================================================
+# AUTHENTICATION ENDPOINTS (OAuth2 / JWT Bearer)
+# ====================================================================
+@app.post("/register", status_code=status.HTTP_201_CREATED, tags=["Authentication"])
+async def register(user_in: UserRegister):
+    """Register a new user or organization for enterprise forensics access."""
+    clean_email = user_in.email.strip().lower()
+    existing = await get_user_by_email(clean_email)
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="An investigator account with this work email already exists.",
+        )
+
+    user_data = {
+        "email": clean_email,
+        "hashed_password": hash_password(user_in.password),
+        "full_name": user_in.full_name or "Forensic Analyst",
+        "role": "Forensic Analyst",
+        "organization": user_in.organization or "Enterprise Security Ops",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await save_user(user_data)
+    token = create_access_token({"sub": clean_email})
+
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "email": user_data["email"],
+            "full_name": user_data["full_name"],
+            "role": user_data["role"],
+            "organization": user_data["organization"],
+            "created_at": user_data["created_at"],
+        },
+    }
+
+
+@app.post("/token", response_model=TokenResponse, tags=["Authentication"])
+async def login_for_access_token(
+    request: Request,
+    form_data: Optional[OAuth2PasswordRequestForm] = Depends(lambda: None),
+):
+    """Authenticate with credentials (supports JSON payload or OAuth2 form-data).
+
+    Returns JWT bearer access token for authorized API access.
+    """
+    email = None
+    password = None
+
+    content_type = request.headers.get("content-type", "")
+    if "application/json" in content_type:
+        try:
+            body = await request.json()
+            email = body.get("email") or body.get("username")
+            password = body.get("password")
+        except Exception:
+            pass
+    elif form_data:
+        email = form_data.username
+        password = form_data.password
+
+    if not email or not password:
+        try:
+            form = await request.form()
+            email = form.get("username") or form.get("email")
+            password = form.get("password")
+        except Exception:
+            pass
+
+    if not email or not password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Work email and password are required.",
+        )
+
+    clean_email = str(email).strip().lower()
+    user = await get_user_by_email(clean_email)
+    if not user or not verify_password(str(password), user.get("hashed_password", "")):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials. Verify your work email and password.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    token = create_access_token({"sub": user["email"]})
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "email": user["email"],
+            "full_name": user.get("full_name", "Forensic Investigator"),
+            "role": user.get("role", "Lead Forensic Investigator"),
+            "organization": user.get("organization", "DocVerify Enterprise Security"),
+            "created_at": user.get("created_at", datetime.now(timezone.utc).isoformat()),
+        },
+    }
+
+
+@app.get("/me", tags=["Authentication"])
+async def get_my_profile(current_user: Dict[str, Any] = Depends(get_current_user)):
+    """Retrieve profile of the currently authenticated forensic investigator."""
+    return {
+        "email": current_user["email"],
+        "full_name": current_user.get("full_name", "Forensic Investigator"),
+        "role": current_user.get("role", "Lead Forensic Investigator"),
+        "organization": current_user.get("organization", "DocVerify Enterprise Security"),
+        "created_at": current_user.get("created_at", ""),
+    }
+
+
 @app.post("/test-db", status_code=status.HTTP_201_CREATED, tags=["Database"])
 async def test_db_insert(payload: Optional[DummyDocument] = None):
     collection = get_documents_collection()
@@ -282,7 +411,11 @@ async def test_db_insert(payload: Optional[DummyDocument] = None):
 
 @app.post("/extract", status_code=status.HTTP_202_ACCEPTED, tags=["Extraction"])
 @app.post("/upload", status_code=status.HTTP_202_ACCEPTED, tags=["Extraction"])
-async def extract_document(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
+async def extract_document(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    current_user: Dict[str, Any] = Depends(get_current_user),
+):
     """Phase 3: Asynchronous Scalable Document Extraction.
 
     - Accepts file uploads (large multi-page PDFs or high-resolution images).
@@ -372,7 +505,7 @@ async def get_job_status(job_id: str):
 
 
 @app.get("/documents", tags=["Documents"])
-async def list_documents():
+async def list_documents(current_user: Dict[str, Any] = Depends(get_current_user)):
     """List recent documents from MongoDB, local JSON fallback, and memory jobs registry."""
     docs = []
     seen_ids = set()
@@ -459,7 +592,10 @@ async def list_documents():
 
 
 @app.get("/documents/{document_id}", tags=["Documents"])
-async def get_document(document_id: str):
+async def get_document(
+    document_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+):
     """Retrieve full details of a specific document with extracted entities and layout."""
     # 1. Check local fallback DB
     doc = get_local_document(document_id)
@@ -508,7 +644,10 @@ async def get_document(document_id: str):
 
 
 @app.post("/analyze", status_code=status.HTTP_200_OK, tags=["Forensics Analysis"])
-async def analyze_documents(payload: AnalyzeRequest):
+async def analyze_documents(
+    payload: AnalyzeRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+):
     """RAG-Driven Forensics Analysis Endpoint.
 
     - Accepts a list of document_ids
@@ -651,11 +790,12 @@ async def analyze_documents(payload: AnalyzeRequest):
 
     return investigation_dossier
 
-    return investigation_dossier
-
 
 @app.post("/chat", status_code=status.HTTP_200_OK, tags=["RAG Chat"])
-async def chat_with_document(payload: ChatRequest):
+async def chat_with_document(
+    payload: ChatRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+):
     """Interactive RAG endpoint: ask questions about uploaded documents.
 
     - Retrieves relevant chunks from ChromaDB based on the question

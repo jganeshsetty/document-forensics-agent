@@ -212,10 +212,120 @@ export const riskLabel = (score: number): string => {
   return "Suspicious / Critical Breaches";
 };
 
+export interface AuthUser {
+  email: string;
+  full_name: string;
+  role: string;
+  organization: string;
+  created_at: string;
+}
+
+export interface AuthResponse {
+  access_token: string;
+  token_type: string;
+  user: AuthUser;
+}
+
+const TOKEN_KEY = "docverify_token";
+const USER_KEY = "docverify_user";
+
+export function getAuthToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function getStoredUser(): AuthUser | null {
+  if (typeof window === "undefined") return null;
+  const raw = localStorage.getItem(USER_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+export function isAuthenticated(): boolean {
+  return !!getAuthToken();
+}
+
+export function setAuthSession(token: string, user: AuthUser) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
+}
+
+export function logout() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+  window.location.replace("/login");
+}
+
+function getAuthHeaders(extraHeaders: Record<string, string> = {}): Record<string, string> {
+  const token = getAuthToken();
+  const headers: Record<string, string> = { ...extraHeaders };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
+export async function login(email: string, password: string): Promise<AuthResponse> {
+  const res = await fetch(`${API_BASE}/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || err.error || "Authentication failed. Check your credentials.");
+  }
+
+  const data: AuthResponse = await res.json();
+  setAuthSession(data.access_token, data.user);
+  return data;
+}
+
+export async function register(
+  email: string,
+  password: string,
+  fullName = "Forensic Analyst",
+  organization = "Enterprise Security Ops"
+): Promise<AuthResponse> {
+  const res = await fetch(`${API_BASE}/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      email,
+      password,
+      full_name: fullName,
+      organization,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || err.error || "Registration failed.");
+  }
+
+  const data: AuthResponse = await res.json();
+  setAuthSession(data.access_token, data.user);
+  return data;
+}
+
 export async function fetchDocuments(): Promise<DocumentRecord[]> {
   try {
-    const res = await fetch(`${API_BASE}/documents`);
-    if (!res.ok) return [];
+    const res = await fetch(`${API_BASE}/documents`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) {
+      if (res.status === 401 && typeof window !== "undefined") {
+        console.warn("Unauthorized request to /documents");
+      }
+      return [];
+    }
     return await res.json();
   } catch (err) {
     console.error("Failed to fetch documents:", err);
@@ -225,7 +335,9 @@ export async function fetchDocuments(): Promise<DocumentRecord[]> {
 
 export async function fetchDocument(documentId: string): Promise<DocumentRecord | null> {
   try {
-    const res = await fetch(`${API_BASE}/documents/${documentId}`);
+    const res = await fetch(`${API_BASE}/documents/${documentId}`, {
+      headers: getAuthHeaders(),
+    });
     if (!res.ok) return null;
     return await res.json();
   } catch (err) {
@@ -239,17 +351,20 @@ export async function uploadDocument(file: File): Promise<{ job_id: string; docu
   formData.append("file", file);
   const res = await fetch(`${API_BASE}/upload`, {
     method: "POST",
+    headers: getAuthHeaders(),
     body: formData,
   });
   if (!res.ok) {
     const errData = await res.json().catch(() => ({}));
-    throw new Error(errData.error || `Upload failed with status ${res.status}`);
+    throw new Error(errData.detail || errData.error || `Upload failed with status ${res.status}`);
   }
   return await res.json();
 }
 
 export async function pollJob(jobId: string): Promise<JobStatusResponse> {
-  const res = await fetch(`${API_BASE}/jobs/${jobId}`);
+  const res = await fetch(`${API_BASE}/jobs/${jobId}`, {
+    headers: getAuthHeaders(),
+  });
   if (!res.ok) {
     throw new Error(`Failed to poll job status: ${res.statusText}`);
   }
@@ -259,12 +374,12 @@ export async function pollJob(jobId: string): Promise<JobStatusResponse> {
 export async function analyzeDocuments(documentIds: string[]): Promise<InvestigationDossier> {
   const res = await fetch(`${API_BASE}/analyze`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ document_ids: documentIds }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || `Analysis failed with status ${res.status}`);
+    throw new Error(err.detail || err.error || `Analysis failed with status ${res.status}`);
   }
   return await res.json();
 }
@@ -272,12 +387,12 @@ export async function analyzeDocuments(documentIds: string[]): Promise<Investiga
 export async function askAssistant(documentId: string, question: string, nResults = 5): Promise<ChatResponse> {
   const res = await fetch(`${API_BASE}/chat`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ document_id: documentId, question, n_results: nResults }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || `Assistant query failed with status ${res.status}`);
+    throw new Error(err.detail || err.error || `Assistant query failed with status ${res.status}`);
   }
   return await res.json();
 }

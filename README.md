@@ -62,7 +62,13 @@ flowchart TD
 
 ## How to Use DocVerify
 
-The user interface follows the **Efferd Dashboard-3** visual language with full Light and Dark theme support.
+The user interface features a dedicated **Product Landing Page** (`/`), a secure **Authentication Portal** (`/login`), and an **Efferd Dashboard-3** forensics console (`/dashboard`) with full Light and Dark theme support.
+
+### Test Credentials (One-Click Access)
+For evaluators, hackathon judges, and test users:
+* **Email:** `admin@docverify.com`
+* **Password:** `password123`
+* *(A convenient "Auto-fill Credentials" button is provided directly on the `/login` screen).*
 
 ### 1. Upload & Inspect (`Uploads & Metadata`)
 * **Drag-and-Drop Ingestion:** Drop single or batches of files (`.pdf`, `.png`, `.jpg`, `.jpeg`, `.xlsx`, `.docx`, `.txt`, `.csv`, `.json`).
@@ -115,6 +121,35 @@ The user interface follows the **Efferd Dashboard-3** visual language with full 
 DocVerify Enterprise features a theme engine with instant mode toggling:
 * **Light Mode (Default):** Crisp white cards, warm-gray canvas (`#fafafa`), hairline borders (`#e4e4e7`), and dark slate typography.
 * **Dark Mode:** Deep zinc canvas (`#09090b`), elevated panels (`#18181b`), and high-contrast text designed for low-light forensics labs.
+
+---
+
+## Quick Start & Installation
+
+### Prerequisites
+* Python 3.10+
+* Node.js 18+ & npm
+
+### 1. Backend Setup (FastAPI)
+```bash
+# Activate virtual environment
+.\.venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the FastAPI server
+python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
+```
+The API documentation is available at `http://127.0.0.1:8000/docs`.
+
+### 2. Frontend Setup (Next.js)
+```bash
+cd frontend
+npm install
+npm run dev
+```
+Open `http://localhost:3000` in your browser.
 
 ---
 

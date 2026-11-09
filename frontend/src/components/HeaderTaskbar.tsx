@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useSyncExternalStore } from "react";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/components/ThemeProvider";
 import {
   PanelLeft,
   Search,
@@ -16,7 +16,10 @@ import {
   Laptop,
   CheckCircle2,
   AlertTriangle,
+  RotateCw,
 } from "lucide-react";
+
+import { logout } from "@/lib/api";
 
 interface HeaderTaskbarProps {
   sidebarOpen: boolean;
@@ -328,10 +331,22 @@ export default function HeaderTaskbar({
                       setProfileOpen(false);
                       onResetSession();
                     }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors text-left border-t border-zinc-100 dark:border-zinc-800"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/80 transition-colors text-left border-t border-zinc-100 dark:border-zinc-800"
+                  >
+                    <RotateCw className="w-4 h-4 text-zinc-400" />
+                    <span>Reset Forensic Filters</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProfileOpen(false);
+                      logout();
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors text-left"
                   >
                     <LogOut className="w-4 h-4" />
-                    <span>Reset Forensic Session</span>
+                    <span>Sign Out</span>
                   </button>
                 </div>
               </div>
