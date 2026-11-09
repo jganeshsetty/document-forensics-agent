@@ -953,7 +953,12 @@ export default function UploadDashboard({
                         <div className="relative group max-h-[420px] overflow-hidden rounded-md border border-zinc-200 dark:border-zinc-800 shadow-sm">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
-                            src={`${API_BASE}${activePageRecord.preview_url}`}
+                            src={
+                              activePageRecord.preview_url.startsWith("http://") ||
+                              activePageRecord.preview_url.startsWith("https://")
+                                ? activePageRecord.preview_url
+                                : `${API_BASE}${activePageRecord.preview_url}`
+                            }
                             alt={`Page ${activePageNum}`}
                             className="max-h-[420px] object-contain"
                           />

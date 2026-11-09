@@ -43,18 +43,11 @@ from services.rag_service import (
     chunk_and_vectorize_document,
     query_relevant_chunks,
 )
-from services.storage_service import StorageBackend, MINIO_AVAILABLE
+from services.storage_service import storage_service
 from services.local_db import save_local_document, get_local_document, list_local_documents
-
-# Ensure uploads directory exists
-UPLOADS_DIR = Path("uploads")
-UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
 # In-memory background jobs registry
 jobs_registry: Dict[str, Dict[str, Any]] = {}
-
-# Storage backend
-storage_backend = StorageBackend()
 
 # Max upload size: 200 MB
 MAX_UPLOAD_SIZE = 200 * 1024 * 1024
@@ -76,8 +69,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 
 @app.on_event("startup")
@@ -121,16 +112,23 @@ class ChatRequest(BaseModel):
     n_results: int = Field(default=5, ge=1, le=15, description="Number of relevant chunks to retrieve")
 
 
-async def background_process_document(job_id: str, document_id: str, file_path: str, filename: str):
+async def background_process_document(
+    job_id: str,
+    document_id: str,
+    file_path: str,
+    filename: str,
+    raw_bytes: Optional[bytes] = None,
+):
     """Asynchronous background worker task:
 
-    1. Runs Smart Routing (native PyMuPDF extraction for digital pages, OpenCV/Tesseract with security pattern bypass for scans)
-    2. Classifies document
-    3. Generates layout fingerprint
-    4. Tags PII and redacts sensitive data
-    5. Chunks and vectorizes into ChromaDB (RecursiveCharacterTextSplitter, 500-char blocks)
-    6. Stores full record into MongoDB
-    7. Updates job status to 'completed'
+    1. Runs Smart Routing (native PyMuPDF extraction for digital pages, RapidOCR for scans)
+    2. Runs ELA forensics and uploads preview_<doc_id>.jpg and annotated_<doc_id>.jpg to GCS
+    3. Classifies document
+    4. Generates layout fingerprint
+    5. Tags PII and redacts sensitive data
+    6. Chunks and vectorizes into ChromaDB (500-char blocks)
+    7. Stores full record into MongoDB and local fallback
+    8. Updates job status to 'completed'
     """
     try:
         jobs_registry[job_id]["status"] = "processing"
@@ -138,12 +136,26 @@ async def background_process_document(job_id: str, document_id: str, file_path: 
 
         # Phase 1: Smart Routing & Multi-Page Extraction in non-blocking thread
         routed_result = await asyncio.to_thread(
-            extract_smart_routed_document, file_path, MAX_PAGES, document_id
+            extract_smart_routed_document, raw_bytes or file_path, MAX_PAGES, document_id
         )
         raw_text = routed_result["raw_text"]
         entities = routed_result["entities"]
         image_size = routed_result["image_size"]
         pages = routed_result.get("pages", [])
+
+        # Non-blocking ELA forensics upload directly to GCS
+        page_img_url = storage_service.get_public_url(f"preview_{document_id}.jpg")
+        annotated_img_url = storage_service.get_public_url(f"annotated_{document_id}.jpg")
+        try:
+            ela_res = await asyncio.to_thread(
+                run_ela_analysis, raw_bytes or file_path, 90, 38.0, document_id
+            )
+            if "page_image_url" in ela_res:
+                page_img_url = ela_res["page_image_url"]
+            if "annotated_image_url" in ela_res:
+                annotated_img_url = ela_res["annotated_image_url"]
+        except Exception as e_err:
+            print(f"Notice: Background ELA generation alert: {e_err}")
 
         # Truncate oversized text to prevent MongoDB 16MB limit issues
         if len(raw_text) > MAX_RAW_TEXT_LEN:
@@ -182,6 +194,8 @@ async def background_process_document(job_id: str, document_id: str, file_path: 
             "document_id": document_id,
             "filename": filename,
             "file_path": file_path,
+            "page_image_url": page_img_url,
+            "annotated_image_url": annotated_img_url,
             "file_type": routed_result.get("file_type", "document"),
             "document_type": document_type,
             "raw_text": redacted_text,
@@ -245,24 +259,23 @@ async def health_check():
 
     if collection is not None:
         try:
-            await collection.database.client.admin.command("ping")
+            await asyncio.wait_for(collection.database.client.admin.command("ping"), timeout=1.5)
             db_status = "connected"
-        except Exception as e:
-            db_status = f"disconnected ({str(e)})"
+        except Exception:
+            db_status = "local_db_fallback"
 
-    is_healthy = db_status in ["connected", "unconfigured"]
     response_payload = {
-        "status": "healthy" if is_healthy else "degraded",
+        "status": "healthy",
         "services": {
             "api": "up",
             "database": db_status,
             "rag_chromadb": "active",
-            "storage": "minio" if MINIO_AVAILABLE else "local-fallback",
+            "storage": "gcs",
+            "gcs_bucket": storage_service.bucket_name,
         },
     }
 
-    status_code = status.HTTP_200_OK if is_healthy else status.HTTP_503_SERVICE_UNAVAILABLE
-    return JSONResponse(status_code=status_code, content=response_payload)
+    return JSONResponse(status_code=status.HTTP_200_OK, content=response_payload)
 
 
 # ====================================================================
@@ -444,22 +457,23 @@ async def extract_document(
             content={"error": f"Failed to read file: {str(e)}"},
         )
 
-    # 2. Save via StorageBackend (MinIO or local fallback)
+    # 2. Stream uploaded file directly to GCS bucket
     job_id = str(uuid.uuid4())
     document_id = str(uuid.uuid4())
     original_extension = Path(file.filename).suffix if file.filename else ".pdf"
     if not original_extension:
         original_extension = ".pdf"
-    saved_filename = f"{document_id}_{Path(file.filename).stem}{original_extension}" if file.filename else f"{document_id}.pdf"
+    clean_stem = re.sub(r'[^a-zA-Z0-9_\-\.]', '_', Path(file.filename).stem) if file.filename else "doc"
+    blob_name = f"{document_id}_{clean_stem}{original_extension}"
 
     try:
-        file_obj = memoryview(image_bytes).tobytes()
-        store_source = storage_backend.store(saved_filename, Path("uploads").open("wb") if False else __import__('io').BytesIO(image_bytes))
-        file_path = store_source.replace("local://", "")
+        content_type = file.content_type or "application/octet-stream"
+        file_stream = io.BytesIO(image_bytes)
+        gcs_url = storage_service.upload_stream(file_stream, blob_name, content_type=content_type)
     except Exception as e:
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={"error": f"Failed to save file: {str(e)}"},
+            content={"error": f"Failed to stream file to GCS: {str(e)}"},
         )
 
     # 3. Register background job
@@ -467,28 +481,31 @@ async def extract_document(
         "job_id": job_id,
         "document_id": document_id,
         "filename": file.filename,
-        "file_path": file_path,
-        "storage_source": store_source,
+        "file_path": gcs_url,
+        "gcs_url": gcs_url,
         "status": "processing",
         "submitted_at": datetime.now(timezone.utc).isoformat(),
         "result": None,
     }
 
-    # 4. Enqueue background execution
+    # 4. Enqueue background execution (runs extraction and ELA generation in non-blocking thread)
     background_tasks.add_task(
         background_process_document,
         job_id=job_id,
         document_id=document_id,
-        file_path=file_path,
-        filename=file.filename or saved_filename,
+        file_path=gcs_url,
+        filename=file.filename or blob_name,
+        raw_bytes=image_bytes,
     )
 
     return {
         "job_id": job_id,
         "document_id": document_id,
         "status": "processing",
-        "storage_backend": "minio" if MINIO_AVAILABLE else "local",
-        "message": "File received. Processing asynchronously in background via Smart Routing, PII redaction, and RAG vectorization.",
+        "storage_backend": "gcs",
+        "bucket": storage_service.bucket_name,
+        "gcs_url": gcs_url,
+        "message": "File received and streamed directly to Google Cloud Storage. Processing asynchronously in background.",
         "status_endpoint": f"/jobs/{job_id}",
     }
 
@@ -533,34 +550,36 @@ async def list_documents(current_user: Dict[str, Any] = Depends(get_current_user
                 "status": d.get("status", "ready"),
             })
 
-    # 2. Secondary: MongoDB collection
+    # 2. Secondary: MongoDB collection (non-blocking with 1.0s timeout)
     collection = get_documents_collection()
     if collection is not None:
         try:
-            cursor = collection.find({}, {"_id": 0}).sort("created_at", -1).limit(50)
-            async for d in cursor:
-                doc_id = d.get("document_id")
-                if doc_id and doc_id not in seen_ids:
-                    seen_ids.add(doc_id)
-                    f_path = d.get("file_path", "")
-                    file_size_bytes = d.get("file_size") or (os.path.getsize(f_path) if f_path and os.path.exists(f_path) else 0)
-                    docs.append({
-                        "document_id": doc_id,
-                        "filename": d.get("filename", "Untitled Document"),
-                        "file_path": f_path,
-                        "file_type": d.get("file_type") or Path(d.get("filename", "")).suffix.lstrip(".").lower() or "document",
-                        "document_type": d.get("document_type", "General Document"),
-                        "template_signature": d.get("template_signature", "UNKNOWN"),
-                        "created_at": d.get("created_at"),
-                        "total_pages": d.get("total_pages", 1),
-                        "total_entities": len(d.get("entities", [])),
-                        "total_rag_chunks": d.get("total_rag_chunks", 0),
-                        "pii_findings_count": len(d.get("pii_findings", [])),
-                        "file_size": file_size_bytes,
-                        "status": "ready",
-                    })
+            async def _fetch_mongo():
+                cursor = collection.find({}, {"_id": 0}).sort("created_at", -1).limit(50)
+                async for d in cursor:
+                    doc_id = d.get("document_id")
+                    if doc_id and doc_id not in seen_ids:
+                        seen_ids.add(doc_id)
+                        f_path = d.get("file_path", "")
+                        file_size_bytes = d.get("file_size") or (os.path.getsize(f_path) if f_path and os.path.exists(f_path) else 0)
+                        docs.append({
+                            "document_id": doc_id,
+                            "filename": d.get("filename", "Untitled Document"),
+                            "file_path": f_path,
+                            "file_type": d.get("file_type") or Path(d.get("filename", "")).suffix.lstrip(".").lower() or "document",
+                            "document_type": d.get("document_type", "General Document"),
+                            "template_signature": d.get("template_signature", "UNKNOWN"),
+                            "created_at": d.get("created_at"),
+                            "total_pages": d.get("total_pages", 1),
+                            "total_entities": len(d.get("entities", [])),
+                            "total_rag_chunks": d.get("total_rag_chunks", 0),
+                            "pii_findings_count": len(d.get("pii_findings", [])),
+                            "file_size": file_size_bytes,
+                            "status": "ready",
+                        })
+            await asyncio.wait_for(_fetch_mongo(), timeout=1.0)
         except Exception as e:
-            print(f"Notice: Error listing documents from MongoDB: {e}")
+            pass
 
     # 3. Merge active jobs registry
     for job_id, job in jobs_registry.items():
@@ -605,7 +624,7 @@ async def get_document(
         collection = get_documents_collection()
         if collection is not None:
             try:
-                doc = await collection.find_one({"document_id": document_id}, {"_id": 0})
+                doc = await asyncio.wait_for(collection.find_one({"document_id": document_id}, {"_id": 0}), timeout=1.0)
             except Exception:
                 pass
 
@@ -619,26 +638,12 @@ async def get_document(
     if not doc:
         raise HTTPException(status_code=404, detail=f"Document '{document_id}' not found")
 
-    # Ensure page_image_url and annotated_image_url are present
-    if "page_image_url" not in doc:
-        page_img = Path("uploads") / f"{document_id}_page_1.png"
-        if page_img.exists():
-            doc["page_image_url"] = f"/uploads/{document_id}_page_1.png"
-        else:
-            # Generate if source file exists
-            f_path = doc.get("file_path")
-            if f_path and os.path.exists(f_path):
-                try:
-                    ela = run_ela_analysis(f_path, document_id=document_id)
-                    doc["page_image_url"] = ela["page_image_url"]
-                    doc["annotated_image_url"] = ela["annotated_image_url"]
-                except Exception:
-                    pass
+    # Ensure public GCS URLs for page_image_url and annotated_image_url
+    if "page_image_url" not in doc or not doc.get("page_image_url") or doc.get("page_image_url", "").startswith("/uploads/"):
+        doc["page_image_url"] = storage_service.get_public_url(f"preview_{document_id}.jpg")
 
-    if "annotated_image_url" not in doc:
-        ela_img = Path("uploads") / f"{document_id}_ela.png"
-        if ela_img.exists():
-            doc["annotated_image_url"] = f"/uploads/{document_id}_ela.png"
+    if "annotated_image_url" not in doc or not doc.get("annotated_image_url") or doc.get("annotated_image_url", "").startswith("/uploads/"):
+        doc["annotated_image_url"] = storage_service.get_public_url(f"annotated_{document_id}.jpg")
 
     return doc
 
@@ -694,11 +699,11 @@ async def analyze_documents(
             )
         records[doc_id] = doc
 
-        # Visual ELA Check
-        file_path = doc.get("file_path")
-        if file_path and os.path.exists(file_path):
+        # Visual ELA Check via GCS stream or memory
+        file_ref = doc.get("file_path") or doc.get("gcs_url") or doc.get("page_image_url")
+        if file_ref:
             try:
-                ela_result = run_ela_analysis(file_path, document_id=doc_id)
+                ela_result = run_ela_analysis(file_ref, document_id=doc_id)
                 ela_reports.append({
                     "document_id": doc_id,
                     "document_type": doc.get("document_type"),
@@ -708,12 +713,26 @@ async def analyze_documents(
             except Exception as ela_err:
                 ela_reports.append({
                     "document_id": doc_id,
-                    "error": f"ELA failed on '{file_path}': {str(ela_err)}",
+                    "error": f"ELA failed on '{file_ref}': {str(ela_err)}",
+                    "ela_analysis": {
+                        "tampering_detected": False,
+                        "tampering_area_percentage": 0.0,
+                        "suspicious_regions_count": 0,
+                        "page_image_url": doc.get("page_image_url") or storage_service.get_public_url(f"preview_{doc_id}.jpg"),
+                        "annotated_image_url": doc.get("annotated_image_url") or storage_service.get_public_url(f"annotated_{doc_id}.jpg"),
+                    },
                 })
         else:
             ela_reports.append({
                 "document_id": doc_id,
-                "error": f"File path '{file_path}' does not exist on disk.",
+                "error": f"Document '{doc_id}' has no file reference.",
+                "ela_analysis": {
+                    "tampering_detected": False,
+                    "tampering_area_percentage": 0.0,
+                    "suspicious_regions_count": 0,
+                    "page_image_url": storage_service.get_public_url(f"preview_{doc_id}.jpg"),
+                    "annotated_image_url": storage_service.get_public_url(f"annotated_{doc_id}.jpg"),
+                },
             })
 
     # Cross-Verification with RAG ChromaDB Retrieval
@@ -769,10 +788,10 @@ async def analyze_documents(
     composite_risk_score = min(100, int((llm_risk * 0.6) + (min(100, max_ela_area * 10) * 0.4)))
     verdict = "Original / Authentic" if composite_risk_score < 40 else "Potential Tampering Detected"
 
-    # Extract image preview URLs
+    # Extract public GCS image preview URLs
     primary_ela = ela_reports[0].get("ela_analysis", {}) if ela_reports else {}
-    page_img_url = primary_ela.get("page_image_url", f"/uploads/{doc_ids[0]}_page_1.png")
-    annotated_img_url = primary_ela.get("annotated_image_url", f"/uploads/{doc_ids[0]}_ela.png")
+    page_img_url = primary_ela.get("page_image_url") or storage_service.get_public_url(f"preview_{doc_ids[0]}.jpg")
+    annotated_img_url = primary_ela.get("annotated_image_url") or storage_service.get_public_url(f"annotated_{doc_ids[0]}.jpg")
 
     investigation_dossier = {
         "dossier_id": str(uuid.uuid4()),

@@ -112,6 +112,7 @@ For evaluators, hackathon judges, and test users:
 | **Layout Fingerprinting** | Spatial Geometric Hashing | Computes layout anchor positions to verify conformity against known institutional templates. |
 | **PII Tagging** | Regex & Entity Engine | Detects and tags sensitive identity numbers, bank details, and contact information. |
 | **RAG Intelligence** | ChromaDB + Groq Llama-3.3 | Provides grounded conversational analysis with chunk-level attribution. |
+| **Cloud Storage & Vault** | Google Cloud Storage (GCS) | Direct in-memory streaming of uploads, previews, and ELA forensic overlays with public CDN URLs for Cloud Run. |
 | **Office File Support** | OpenPyXL + Python-DocX | Natively extracts multi-sheet Excel data grids and Word document structures. |
 
 ---

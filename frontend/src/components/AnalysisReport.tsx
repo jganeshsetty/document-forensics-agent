@@ -175,21 +175,29 @@ export default function AnalysisReport({
           },
         ];
 
-  // Resolve Image URLs
+  // Resolve Public GCS Image URLs
   const activeDocIdentifier = currentDoc?.document_id || activeDocId;
-  const pageImgUrl =
+  const rawPageUrl =
     dossier?.page_image_url ||
     currentDoc?.page_image_url ||
-    `/uploads/${activeDocIdentifier}_page_1.png`;
+    `https://storage.googleapis.com/docverify-forensics-vault/preview_${activeDocIdentifier}.jpg`;
 
-  const annotatedImgUrl =
+  const rawAnnotatedUrl =
     dossier?.annotated_image_url ||
     currentDoc?.annotated_image_url ||
-    `/uploads/${activeDocIdentifier}_ela.png`;
+    `https://storage.googleapis.com/docverify-forensics-vault/annotated_${activeDocIdentifier}.jpg`;
+
+  const resolveImageUrl = (url?: string | null) => {
+    if (!url) return "";
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      return url;
+    }
+    return `${API_BASE}${url}`;
+  };
 
   const activeImageUrl = showAnnotations
-    ? `${API_BASE}${annotatedImgUrl}`
-    : `${API_BASE}${pageImgUrl}`;
+    ? resolveImageUrl(rawAnnotatedUrl)
+    : resolveImageUrl(rawPageUrl);
 
   return (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">

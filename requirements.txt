@@ -21,3 +21,4 @@ python-docx
 pyjwt
 passlib
 bcrypt
+google-cloud-storage

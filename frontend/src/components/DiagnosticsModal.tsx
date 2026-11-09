@@ -42,10 +42,10 @@ export default function DiagnosticsModal({ isOpen, onClose }: DiagnosticsModalPr
       icon: BrainCircuit,
     },
     {
-      name: "Document Storage & Cache",
+      name: "Google Cloud Storage (GCS)",
       status: "online",
-      latency: 6,
-      details: "Local persistent JSON fallback + uploads folder mounted",
+      latency: 12,
+      details: "Direct GCS streaming upload & public image asset vault active",
       icon: HardDrive,
     },
   ]);

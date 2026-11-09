@@ -1,14 +1,15 @@
 import os
 import re
-import shutil
+import io
 import uuid
 import hashlib
-from typing import Any, Dict, List, Tuple, Optional
+from typing import Any, Dict, List, Tuple, Optional, Union
 import cv2
 import numpy as np
 from pydantic import BaseModel, Field
 import httpx
 from rapidocr_onnxruntime import RapidOCR
+from services.storage_service import storage_service
 
 # Global singleton RapidOCR engine for non-blocking high-speed OCR
 _rapid_ocr_engine: Optional[RapidOCR] = None
@@ -19,6 +20,28 @@ def get_ocr_engine() -> RapidOCR:
     if _rapid_ocr_engine is None:
         _rapid_ocr_engine = RapidOCR()
     return _rapid_ocr_engine
+
+
+def get_file_bytes(file_input: Union[str, bytes]) -> bytes:
+    """Retrieve file bytes directly from memory, GCS URL, or disk with zero required local saving."""
+    if isinstance(file_input, bytes):
+        return file_input
+    if isinstance(file_input, str):
+        if file_input.startswith("http://") or file_input.startswith("https://") or "storage.googleapis.com" in file_input:
+            data = storage_service.download_bytes(file_input)
+            if data:
+                return data
+        if os.path.exists(file_input):
+            try:
+                with open(file_input, "rb") as f:
+                    return f.read()
+            except Exception:
+                pass
+        # Fallback to downloading as blob name from GCS
+        data = storage_service.download_bytes(file_input)
+        if data:
+            return data
+    return b""
 
 
 # Pydantic Schemas for Strict Frontend Data Validation
@@ -397,15 +420,19 @@ def classify_document(raw_text: str) -> str:
     return "General Document"
 
 
-def extract_excel_document(file_path: str, document_id: Optional[str] = None) -> Dict[str, Any]:
+def extract_excel_document(file_path: Union[str, bytes], document_id: Optional[str] = None) -> Dict[str, Any]:
     """Forensic Spreadsheet Extraction Engine:
-    - Parses Excel (.xlsx, .xls) and CSV (.csv) workbooks.
+    - Parses Excel (.xlsx, .xls) and CSV (.csv) workbooks in memory.
     - Extracts all sheet names, rows, columns, headers, and cell values.
     - Inspects formulas to detect security risks (e.g. =cmd, =SYSTEM, =WEBSERVICE, malicious external links).
     - Identifies empty cells, data density, and column types.
     - Builds structured RAG-ready text representations and entities for each sheet.
     """
-    ext = os.path.splitext(file_path)[1].lower()
+    ext = ".xlsx"
+    if isinstance(file_path, str) and "." in file_path:
+        ext = os.path.splitext(file_path.split("?")[0])[1].lower()
+
+    raw_bytes = get_file_bytes(file_path)
     sheets_info: List[Dict[str, Any]] = []
     all_raw_texts: List[str] = []
     all_entities: List[Dict[str, Any]] = []
@@ -422,14 +449,18 @@ def extract_excel_document(file_path: str, document_id: Optional[str] = None) ->
 
     if ext in [".xlsx", ".xlsm"]:
         import openpyxl
+        file_stream = io.BytesIO(raw_bytes)
         try:
-            wb = openpyxl.load_workbook(file_path, data_only=False, read_only=False)
+            wb = openpyxl.load_workbook(file_stream, data_only=False, read_only=False)
             sheet_names = wb.sheetnames
         except Exception as e:
             # Fallback to read_only if large
             try:
-                wb = openpyxl.load_workbook(file_path, data_only=True, read_only=True)
+                file_stream.seek(0)
+                wb = openpyxl.load_workbook(file_stream, data_only=True, read_only=True)
                 sheet_names = wb.sheetnames
+            except Exception as e2:
+                raise ValueError(f"Could not parse Excel workbook: {e2}")
             except Exception as e2:
                 raise ValueError(f"Could not parse Excel workbook: {e2}")
 
@@ -519,10 +550,9 @@ def extract_excel_document(file_path: str, document_id: Optional[str] = None) ->
         content = ""
         for enc in encodings:
             try:
-                with open(file_path, "r", encoding=enc) as f:
-                    content = f.read()
+                content = raw_bytes.decode(enc)
                 break
-            except (UnicodeDecodeError, Exception):
+            except Exception:
                 continue
 
         reader = csv.reader(content.splitlines())
@@ -603,13 +633,14 @@ def extract_excel_document(file_path: str, document_id: Optional[str] = None) ->
     }
 
 
-def extract_docx_document(file_path: str, document_id: Optional[str] = None) -> Dict[str, Any]:
+def extract_docx_document(file_path: Union[str, bytes], document_id: Optional[str] = None) -> Dict[str, Any]:
     """Forensic Word Document (.docx) Extraction:
-    - Extracts all paragraphs, styles, heading levels, and tables.
+    - Extracts all paragraphs, styles, heading levels, and tables directly from memory.
     - Inspects document core properties (Author, Created, LastModifiedBy, Revision).
     """
     import docx
-    doc = docx.Document(file_path)
+    raw_bytes = get_file_bytes(file_path)
+    doc = docx.Document(io.BytesIO(raw_bytes))
     all_raw_texts: List[str] = []
     all_entities: List[Dict[str, Any]] = []
     tables_data: List[Dict[str, Any]] = []
@@ -695,17 +726,20 @@ def extract_docx_document(file_path: str, document_id: Optional[str] = None) -> 
     }
 
 
-def extract_text_document(file_path: str, document_id: Optional[str] = None) -> Dict[str, Any]:
-    """Plain Text, Markdown, or JSON Forensic Extraction."""
-    ext = os.path.splitext(file_path)[1].lower()
+def extract_text_document(file_path: Union[str, bytes], document_id: Optional[str] = None) -> Dict[str, Any]:
+    """Plain Text, Markdown, or JSON Forensic Extraction from memory."""
+    ext = ".txt"
+    if isinstance(file_path, str) and "." in file_path:
+        ext = os.path.splitext(file_path.split("?")[0])[1].lower()
+
+    raw_bytes = get_file_bytes(file_path)
     encodings = ["utf-8", "utf-8-sig", "latin-1", "cp1252"]
     content = ""
     for enc in encodings:
         try:
-            with open(file_path, "r", encoding=enc) as f:
-                content = f.read()
+            content = raw_bytes.decode(enc)
             break
-        except (UnicodeDecodeError, Exception):
+        except Exception:
             continue
 
     all_entities: List[Dict[str, Any]] = []
@@ -757,15 +791,34 @@ def extract_text_document(file_path: str, document_id: Optional[str] = None) -> 
     }
 
 
-def extract_smart_routed_document(file_path: str, max_pages: int = 100, document_id: Optional[str] = None) -> Dict[str, Any]:
+def extract_smart_routed_document(file_path: Union[str, bytes], max_pages: int = 100, document_id: Optional[str] = None) -> Dict[str, Any]:
     """Multi-Format & Universal Document Forensics Ingestion:
-    - PDF: Multi-page scanning (all pages up to max_pages), PyMuPDF digital text + OCR fallback, page preview generation.
+    - PDF: Multi-page scanning (all pages up to max_pages), PyMuPDF digital text + OCR fallback, page preview generation streamed directly to GCS.
     - Excel / CSV (.xlsx, .xls, .csv): Full workbook spreadsheet parsing, formula inspection, tabular grid extraction.
     - Word (.docx): Paragraphs, headings, embedded tables, and document metadata.
     - Text / JSON (.txt, .md, .json): Clean text and structural schema parsing.
-    - Images (.png, .jpg, .jpeg, .tiff, .bmp, .webp): High-res OpenCV/Tesseract OCR, stamps, signatures, and EXIF.
+    - Images (.png, .jpg, .jpeg, .tiff, .bmp, .webp): High-res OpenCV/Tesseract OCR, stamps, signatures, and EXIF, streamed to GCS.
     """
-    ext = os.path.splitext(file_path)[1].lower()
+    raw_bytes = get_file_bytes(file_path)
+    ext = ""
+    if isinstance(file_path, str) and "." in file_path:
+        ext = os.path.splitext(file_path.split("?")[0])[1].lower()
+
+    if not ext:
+        if raw_bytes.startswith(b"%PDF"):
+            ext = ".pdf"
+        elif raw_bytes.startswith(b"PK\x03\x04"):
+            ext = ".docx"
+        else:
+            ext = ".png"
+
+    doc_prefix = document_id or "doc"
+    if isinstance(file_path, str) and not document_id:
+        base_name = os.path.splitext(os.path.basename(file_path.split("?")[0]))[0]
+        parts = base_name.split("_", 1)
+        doc_prefix = parts[0] if len(parts) > 1 and len(parts[0]) >= 32 else base_name
+    elif "_" in doc_prefix and len(doc_prefix.split("_")[0]) >= 32:
+        doc_prefix = doc_prefix.split("_")[0]
 
     if ext in [".xlsx", ".xls", ".csv"]:
         return extract_excel_document(file_path, document_id)
@@ -775,18 +828,17 @@ def extract_smart_routed_document(file_path: str, max_pages: int = 100, document
         return extract_text_document(file_path, document_id)
     elif ext == ".pdf":
         import pymupdf
-        doc = pymupdf.open(file_path)
+        try:
+            if isinstance(file_path, str) and os.path.exists(file_path):
+                doc = pymupdf.open(file_path)
+            else:
+                doc = pymupdf.open(stream=raw_bytes, filetype="pdf")
+        except Exception as e:
+            raise ValueError(f"Failed to open PDF stream: {e}")
+
         total_pages = len(doc)
         pages_to_process = min(total_pages, max_pages)
         page_width, page_height = 1000, 1000
-
-        previews_dir = os.path.join("uploads", "previews")
-        os.makedirs(previews_dir, exist_ok=True)
-
-        doc_prefix = document_id or os.path.splitext(os.path.basename(file_path))[0]
-        # Clean prefix
-        if "_" in doc_prefix and len(doc_prefix.split("_")[0]) >= 32:
-            doc_prefix = doc_prefix.split("_")[0]
 
         page_records: List[Dict[str, Any]] = []
         all_entities: List[Dict[str, Any]] = []
@@ -799,15 +851,14 @@ def extract_smart_routed_document(file_path: str, max_pages: int = 100, document
             page_num = page_idx + 1
             native_text = page.get_text("text").strip()
 
-            # Generate and save preview image for EVERY page so user can navigate pages visually
-            preview_filename = f"{doc_prefix}_page_{page_num}.png"
-            preview_disk_path = os.path.join(previews_dir, preview_filename)
-            preview_url = f"/uploads/previews/{preview_filename}"
-
+            # Stream preview directly to GCS in memory
+            preview_blob_name = f"preview_{doc_prefix}.jpg" if page_num == 1 else f"preview_{doc_prefix}_page_{page_num}.jpg"
+            preview_url = storage_service.get_public_url(preview_blob_name)
             try:
                 pix = page.get_pixmap(dpi=120)
-                pix.save(preview_disk_path)
-            except Exception as p_err:
+                page_jpeg_bytes = pix.tobytes("jpeg")
+                preview_url = storage_service.upload_bytes(page_jpeg_bytes, preview_blob_name, "image/jpeg")
+            except Exception:
                 pass
 
             # Check if page contains extractable digital text
@@ -897,26 +948,14 @@ def extract_smart_routed_document(file_path: str, max_pages: int = 100, document
         }
     else:
         # Standard Single Image Upload (.png, .jpg, .jpeg, .tiff, .bmp, .webp)
-        with open(file_path, "rb") as f:
-            img_bytes = f.read()
-
+        img_bytes = raw_bytes
         ocr_result = extract_document_features(img_bytes)
         for ent in ocr_result["entities"]:
             ent["page_number"] = 1
 
-        # Also save preview image for page 1
-        previews_dir = os.path.join("uploads", "previews")
-        os.makedirs(previews_dir, exist_ok=True)
-        doc_prefix = document_id or os.path.splitext(os.path.basename(file_path))[0]
-        if "_" in doc_prefix and len(doc_prefix.split("_")[0]) >= 32:
-            doc_prefix = doc_prefix.split("_")[0]
-
-        preview_filename = f"{doc_prefix}_page_1.png"
-        preview_disk_path = os.path.join(previews_dir, preview_filename)
-        try:
-            shutil.copyfile(file_path, preview_disk_path)
-        except Exception:
-            pass
+        # Stream preview_<doc_id>.jpg directly to GCS
+        preview_blob_name = f"preview_{doc_prefix}.jpg"
+        preview_url = storage_service.upload_bytes(img_bytes, preview_blob_name, "image/jpeg")
 
         return {
             "is_multi_page": False,
@@ -931,7 +970,7 @@ def extract_smart_routed_document(file_path: str, max_pages: int = 100, document
                 "text": ocr_result["raw_text"],
                 "entities": ocr_result["entities"],
                 "word_count": len(ocr_result["raw_text"].split()),
-                "preview_url": f"/uploads/previews/{preview_filename}",
+                "preview_url": preview_url,
             }],
             "image_size": ocr_result["image_size"],
         }

@@ -1,7 +1,7 @@
 import os
 import json
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from pathlib import Path
 import cv2
 import numpy as np
@@ -10,39 +10,58 @@ from groq import Groq
 
 from database.connection import get_documents_collection
 from services.rag_service import query_relevant_chunks
+from services.storage_service import storage_service
 
 load_dotenv()
 
 
-def run_ela_analysis(file_path: str, quality: int = 90, threshold: float = 38.0, document_id: Optional[str] = None) -> Dict[str, Any]:
+def run_ela_analysis(file_path: Union[str, bytes], quality: int = 90, threshold: float = 38.0, document_id: Optional[str] = None) -> Dict[str, Any]:
     """1. Visual Forensics: Error Level Analysis (ELA)
 
-    - Supports both PDF pages (rendered via PyMuPDF) and raw images.
+    - Supports both PDF pages (rendered via PyMuPDF in-memory) and raw images.
     - Compresses copy to temporary JPEG buffer at given quality (default 90%)
     - Calculates absolute difference between original and recompressed image
     - Scales difference and finds high variance / tampering regions
-    - Saves clean page image and OpenCV annotated overlay image for frontend preview
-    - Returns suspicious bounding boxes [x, y, w, h], tampering ratio, and image URLs
+    - Uploads clean preview and annotated ELA images directly to GCS (preview_<doc_id>.jpg and annotated_<doc_id>.jpg)
+    - Returns suspicious bounding boxes [x, y, w, h], tampering ratio, and public GCS URLs
     """
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"File not found for ELA analysis: {file_path}")
-
-    # Generate or sanitize document_id for file saving
+    # Generate or sanitize document_id for file naming
     if not document_id:
-        base_name = os.path.splitext(os.path.basename(file_path))[0]
-        # Extract leading UUID if present
-        parts = base_name.split("_", 1)
-        document_id = parts[0] if len(parts) > 1 and len(parts[0]) >= 32 else base_name
+        if isinstance(file_path, str):
+            base_name = os.path.splitext(os.path.basename(file_path.split("?")[0]))[0]
+            parts = base_name.split("_", 1)
+            document_id = parts[0] if len(parts) > 1 and len(parts[0]) >= 32 else base_name
+        else:
+            document_id = "doc_" + str(np.random.randint(100000, 999999))
 
-    uploads_dir = Path("uploads")
-    uploads_dir.mkdir(parents=True, exist_ok=True)
+    # 1. Retrieve raw file bytes directly from memory, GCS URL, or disk
+    raw_data: Optional[bytes] = None
+    if isinstance(file_path, bytes):
+        raw_data = file_path
+    elif isinstance(file_path, str):
+        if file_path.startswith("http://") or file_path.startswith("https://") or "storage.googleapis.com" in file_path:
+            raw_data = storage_service.download_bytes(file_path)
+        elif os.path.exists(file_path):
+            with open(file_path, "rb") as f:
+                raw_data = f.read()
+        else:
+            raw_data = storage_service.download_bytes(file_path)
 
-    # 1. Load image (render first page if PDF)
-    if file_path.lower().endswith(".pdf"):
+    if not raw_data:
+        raise FileNotFoundError(f"File content could not be retrieved for ELA analysis: {file_path}")
+
+    # Determine if PDF
+    is_pdf = False
+    if isinstance(file_path, str) and file_path.lower().split("?")[0].endswith(".pdf"):
+        is_pdf = True
+    elif raw_data.startswith(b"%PDF"):
+        is_pdf = True
+
+    if is_pdf:
         import fitz
-        doc = fitz.open(file_path)
+        doc = fitz.open(stream=raw_data, filetype="pdf")
         if len(doc) == 0:
-            raise ValueError(f"PDF document is empty: {file_path}")
+            raise ValueError(f"PDF document is empty for ELA: {file_path}")
         page = doc.load_page(0)
         pix = page.get_pixmap(dpi=150)
         img_bytes = pix.tobytes("png")
@@ -50,16 +69,18 @@ def run_ela_analysis(file_path: str, quality: int = 90, threshold: float = 38.0,
         image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         doc.close()
     else:
-        image = cv2.imread(file_path)
+        nparr = np.frombuffer(raw_data, np.uint8)
+        image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
     if image is None:
-        raise ValueError(f"Could not load image at path: {file_path}")
+        raise ValueError(f"Could not decode image for ELA analysis from source: {file_path}")
 
     h, w = image.shape[:2]
 
-    # Save clean page 1 image
-    page_img_path = uploads_dir / f"{document_id}_page_1.png"
-    cv2.imwrite(str(page_img_path), image)
+    # Stream preview_<doc_id>.jpg directly to GCS
+    _, preview_buf = cv2.imencode(".jpg", image, [int(cv2.IMWRITE_JPEG_QUALITY), 92])
+    preview_blob_name = f"preview_{document_id}.jpg"
+    page_image_url = storage_service.upload_bytes(preview_buf.tobytes(), preview_blob_name, "image/jpeg")
 
     # 2. Recompress in memory at specified JPEG quality
     encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), quality]
@@ -145,18 +166,20 @@ def run_ela_analysis(file_path: str, quality: int = 90, threshold: float = 38.0,
             cv2.LINE_AA,
         )
 
-    ela_img_path = uploads_dir / f"{document_id}_ela.png"
-    cv2.imwrite(str(ela_img_path), annotated)
+    # Stream annotated_<doc_id>.jpg directly to GCS
+    _, ann_buf = cv2.imencode(".jpg", annotated, [int(cv2.IMWRITE_JPEG_QUALITY), 92])
+    annotated_blob_name = f"annotated_{document_id}.jpg"
+    annotated_image_url = storage_service.upload_bytes(ann_buf.tobytes(), annotated_blob_name, "image/jpeg")
 
     return {
-        "file_path": file_path,
+        "file_path": file_path if isinstance(file_path, str) else page_image_url,
         "image_dimensions": [w, h],
         "tampering_detected": has_tampering,
         "tampering_area_percentage": tampering_ratio,
         "suspicious_regions_count": len(suspicious_regions),
         "suspicious_regions": suspicious_regions[:25],
-        "page_image_url": f"/uploads/{document_id}_page_1.png",
-        "annotated_image_url": f"/uploads/{document_id}_ela.png",
+        "page_image_url": page_image_url,
+        "annotated_image_url": annotated_image_url,
     }
 
 
