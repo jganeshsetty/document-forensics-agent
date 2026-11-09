@@ -1,131 +1,163 @@
 # DocVerify Enterprise — AI Document Forensics & Tamper Intelligence
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.109+-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![Next.js](https://img.shields.io/badge/Next.js-14+-black.svg?logo=next.js&logoColor=white)](https://nextjs.org)
+[![Next.js](https://img.shields.io/badge/Next.js-16+-black.svg?logo=next.js&logoColor=white)](https://nextjs.org)
+[![Google Cloud Storage](https://img.shields.io/badge/Google_Cloud_Storage-GCS-4285F4.svg?logo=google-cloud&logoColor=white)](https://cloud.google.com/storage)
 [![RapidOCR](https://img.shields.io/badge/RapidOCR-PP--OCRv4%20ONNX-blue.svg)](https://github.com/RapidAI/RapidOCR)
 [![PyMuPDF4LLM](https://img.shields.io/badge/PyMuPDF-v2.1-red.svg)](https://pymupdf.readthedocs.io)
 [![Groq Llama-3.3](https://img.shields.io/badge/Groq-Llama--3.3--70B-orange.svg)](https://groq.com)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-v3-38bdf8.svg?logo=tailwind-css&logoColor=white)](https://tailwindcss.com)
 
-**DocVerify Enterprise** is an autonomous forensic intelligence platform engineered to detect digital tampering, verify credentials, and extract structural data across academic marks cards, identity documents, legal certificates, spreadsheets, and enterprise PDFs.
+**DocVerify Enterprise** is an autonomous, cloud-native document forensics and verification platform engineered to detect digital tampering, verify credentials, and extract structural data across academic marks cards, identity documents, legal certificates, spreadsheets, and enterprise PDFs.
+
+Now wired with **Google Cloud Storage (GCS)** for fully stateless, containerized **Google Cloud Run** deployment.
 
 ---
 
-## What is DocVerify Enterprise?
-
-Modern image editing software, PDF modifier tools, and generative AI make altering academic grades, tax forms, registration numbers, and official signatures trivial. Manual document verification across thousands of files creates bottlenecks for universities, HR teams, banks, and legal auditors.
-
-DocVerify automates document verification by combining:
-1. **Computer Vision Forensics (OpenCV)** to catch invisible pixel-level tampering and compression artifacts.
-2. **Guilloche-Resistant OCR (RapidOCR PP-OCRv4 ONNX)** to extract text across complex watermark backgrounds without freezing.
-3. **Multi-Format Parsing (PDF, Excel, Word, Images)** with format-specific forensic viewports.
-4. **Vector RAG & AI Verification (ChromaDB + Groq Llama-3.3)** to validate mathematical totals, cross-verify data, and answer investigator questions.
-
----
-
-## System Architecture & Workflow
+## How DocVerify Works (End-to-End Workflow)
 
 ```mermaid
 flowchart TD
-    subgraph Ingestion ["1. Document Ingestion"]
-        A["Uploaded File\n(PDF, JPG, PNG, XLSX, DOCX)"] --> B["Smart Format Router"]
+    subgraph Client ["1. Frontend Experience (Next.js 16)"]
+        Landing["Landing Page (/)"] --> Auth["Auth Portal (/login)\n(JWT Bearer)"]
+        Auth --> Console["Forensics Dashboard (/dashboard)"]
     end
 
-    subgraph Extraction ["2. Fast-Path Extraction Engine"]
-        B -->|Digital PDF| C["PyMuPDF4LLM\n(Markdown & Table Extraction)"]
-        B -->|Scanned / Image| D["RapidOCR (PP-OCRv4 ONNX)\n(Guilloche-Resistant OCR)"]
-        B -->|Spreadsheet| E["OpenPyXL\n(Multi-sheet Grid Data)"]
-        B -->|Word Document| F["Python-DocX\n(Paragraphs & Runs)"]
+    subgraph Ingestion ["2. Cloud-Native Ingestion (FastAPI)"]
+        Console -->|Direct Multipart Stream| API["FastAPI /upload & /extract"]
+        API -->|Stream In-Memory| GCS["Google Cloud Storage (GCS)\nBucket: $GCP_BUCKET_NAME"]
     end
 
-    subgraph Forensics ["3. Computer Vision Forensics"]
-        C & D --> G["OpenCV Error Level Analysis (ELA)\n(JPEG Recompression & Splicing Detection)"]
-        C & D --> H["HSV Stamp & Seal Detector\n(Circular Contour & Color Isolation)"]
-        C & D --> I["Typography & Ink Intensity Profiler\n(Mean Pixel Density & Font Metrics)"]
-        C & D --> J["Layout Fingerprinting Engine\n(Spatial Geometric Hash)"]
+    subgraph Processing ["3. In-Memory Forensics & Extraction"]
+        API --> SmartRouter["Smart Format Router\n(Zero Disk I/O)"]
+        SmartRouter -->|Digital PDF| PyMu["PyMuPDF4LLM\n(Markdown & Tables)"]
+        SmartRouter -->|Scanned / Certificate| OCR["RapidOCR PP-OCRv4 ONNX\n(Guilloche-Resistant OCR)"]
+        SmartRouter -->|Excel / CSV| Excel["OpenPyXL\n(Formula & Grid Auditing)"]
+        SmartRouter -->|Word DOCX| Word["Python-DocX\n(Metadata & Runs)"]
     end
 
-    subgraph Intelligence ["4. AI & Knowledge Layer"]
-        G & H & I & J --> K["Groq AI (Llama 3.3 70B)\n(Credential Verification & PII Tagging)"]
-        C & D --> L["ChromaDB Vector Store\n(Chunked RAG Indexing)"]
+    subgraph Forensics ["4. Visual Forensics & ELA Engine"]
+        SmartRouter --> ELA["OpenCV Error Level Analysis\n(Compression Variance Hotspots)"]
+        ELA -->|Upload In-Memory Buffer| GCS_Artifacts["GCS Public Artifacts\npreview_<id>.jpg\nannotated_<id>.jpg"]
+        SmartRouter --> Stamp["HSV Seal & Stamp Detector"]
+        SmartRouter --> Layout["Geometric Layout Fingerprint"]
+        SmartRouter --> PII["PII Discovery & Redaction Engine"]
     end
 
-    subgraph Console ["5. Efferd Forensics Console"]
-        K & L --> M["Uploads & Forensic Inspector"]
-        K & L --> N["Authenticity Dossier & ELA Visual Comparator"]
-        K & L --> O["Interactive Knowledge Mindmap (ReactFlow)"]
-        K & L --> P["Grounded RAG Assistant Chat"]
+    subgraph Intelligence ["5. Semantic RAG & AI Verification"]
+        PyMu & OCR --> Chroma["ChromaDB Vector Index\n(500-char semantic chunks)"]
+        Chroma & ELA --> Groq["Groq AI (Llama 3.3 70B)\n(Discrepancy Audit & Cross-Verification)"]
+    end
+
+    subgraph Views ["6. Efferd Forensics Viewports"]
+        GCS_Artifacts & Groq --> V1["Forensic Inspector\n(High-res Zoom & Bounding Boxes)"]
+        GCS_Artifacts & Groq --> V2["Authenticity Dossier\n(ELA Slider & Risk Score)"]
+        Chroma --> V3["ReactFlow Knowledge Mindmap"]
+        Groq --> V4["Grounded Assistant Chat\n(Attributed Citations)"]
     end
 ```
 
 ---
 
-## How to Use DocVerify
+## Complete Step-by-Step Architecture
 
-The user interface features a dedicated **Product Landing Page** (`/`), a secure **Authentication Portal** (`/login`), and an **Efferd Dashboard-3** forensics console (`/dashboard`) with full Light and Dark theme support.
+### Step 1: Authentication & Access Control
+* **Landing Page (`/`)**: Product showcase highlighting document forensic capabilities, court admissibility standards, and architectural breakdown.
+* **Authentication Portal (`/login`)**: Secure authentication supporting user registration (`POST /register`) and JWT token generation (`POST /token`) with bcrypt password hashing.
+* **Evaluator Test Access**: Seeded with default credentials (`admin@docverify.com` / `password123`) with a 1-click **Auto-fill** button.
+* **Client-Side Route Guard**: All dashboard views (`/dashboard`, `/workspace`) verify active JWT bearer tokens, redirecting unauthenticated requests.
 
-### Test Credentials (One-Click Access)
-For evaluators, hackathon judges, and test users:
-* **Email:** `admin@docverify.com`
-* **Password:** `password123`
-* *(A convenient "Auto-fill Credentials" button is provided directly on the `/login` screen).*
+### Step 2: Cloud Ingestion (Google Cloud Storage Streaming)
+* **Zero Local Disk Writes**: When a document is uploaded, FastAPI directly streams the file into the Google Cloud Storage bucket defined by `GCP_BUCKET_NAME` using `blob.upload_from_file()`.
+* **Cloud Run Ready**: Container filesystem remains 100% ephemeral and stateless, enabling horizontal auto-scaling with zero persistent volume requirements.
+* **Service Account Authentication**: Authenticates via `GOOGLE_APPLICATION_CREDENTIALS_JSON` environment variable using `service_account.Credentials.from_service_account_info()` or native Cloud Run Application Default Credentials (ADC).
 
-### 1. Upload & Inspect (`Uploads & Metadata`)
-* **Drag-and-Drop Ingestion:** Drop single or batches of files (`.pdf`, `.png`, `.jpg`, `.jpeg`, `.xlsx`, `.docx`, `.txt`, `.csv`, `.json`).
-* **Format-Specific Forensic Inspector:**
-  * **PDFs:** View pages with highlighted text bounding boxes, font heights, and structural metadata.
-  * **Images:** Zoom and pan high-resolution certificate scans.
-  * **Excel Spreadsheets:** Switch between workbook sheets to inspect cell matrices, row/column dimensions, and formula counts.
-  * **Word Documents:** Review paragraph hierarchies and table matrices.
-* **Sensitive PII Discovery:** Automatically identifies and tags sensitive entities (Aadhaar, PAN, SSN, Phone, Email, Bank Accounts) with confidence levels.
+### Step 3: Fast-Path Multi-Format Parsing
+* **Digital PDFs**: Evaluates text density in milliseconds. Clean digital pages are extracted directly via `PyMuPDF4LLM` into structured Markdown and bounding boxes without invoking heavy OCR models.
+* **Certificates & Scans**: Routes watermarked or scanned pages to `RapidOCR PP-OCRv4 ONNX`. Operates reliably over complex guilloche security patterns and colored bank seals without freezing.
+* **Spreadsheets (`.xlsx`, `.csv`)**: Analyzes all workbook sheets in memory via `OpenPyXL`. Scans formulas for injection vectors (`=cmd`, `=SYSTEM`, malicious external links) and tabulates row/column metrics.
+* **Word Documents (`.docx`)**: Extracts paragraph runs, embedded table hierarchies, and author revisions via `python-docx`.
 
-### 2. Forensic Authenticity Audit (`Analysis Report`)
-* **Radial Authenticity Gauge:** View an instant composite integrity score (0% to 100%) calculated across visual, metadata, and structural forensic layers.
-* **OpenCV ELA Visual Comparator:** Toggle between the clean original scan and the Error Level Analysis (ELA) overlay to inspect digital alteration hotspots and compression variance.
-* **Discrepancy Breakdown:** Review itemized findings including font size irregularities, mismatched dates, modified EXIF creation software, and altered totals.
-* **Dossier Export:** Click **Export Dossier** to download a cryptographically structured JSON audit package.
+### Step 4: OpenCV Visual Forensics & Cloud Artifacts
+* **Error Level Analysis (ELA)**: Recompresses image buffers at controlled JPEG quality levels to isolate variance in compression error. Detects copy-paste splices, inserted text numbers, and altered signatures.
+* **Cloud Artifact Generation**:
+  * Clean preview: `https://storage.googleapis.com/{GCP_BUCKET_NAME}/preview_<doc_id>.jpg`
+  * ELA overlay: `https://storage.googleapis.com/{GCP_BUCKET_NAME}/annotated_<doc_id>.jpg`
+  * Both are encoded in-memory via OpenCV JPEG buffers and uploaded directly to GCS.
+* **Layout Fingerprinting**: Computes normalized geometric coordinates of all headings and bodies to generate a spatial fingerprint that verifies template conformity against known institutional layouts.
+* **PII Redaction**: Discovers sensitive identifiers (Aadhaar, PAN, SSN, bank accounts) and redacts them in the RAG pipeline for audit compliance.
 
-### 3. Knowledge Graph Exploration (`Document Map`)
-* **Hierarchical Tree View:** Explore documents, categories, metadata nodes, and extracted entities in an interactive tree view.
-* **ReactFlow Mindmap:** Switch to the radial node canvas to visualize connections between document sections, headings, stamps, and credential entities with real-time zooming and node selection.
-
-### 4. Grounded Forensic Assistant (`Assistant`)
-* **Vector Semantic Search:** Ask free-form investigative questions grounded strictly in the target document’s indexed chunks.
-* **Source Attribution:** Expand referenced ChromaDB chunks to inspect the exact textual evidence and cosine match distances behind every answer.
-* **Investigator Starter Queries:** One-click prompt cards to instantly audit credential consistency, verify calculation accuracy, or summarize anomalies.
-
-### 5. Auditor Profile & Audit Session Management
-* **Auditor Credentials:** Configure investigator name and professional role via the Account Menu.
-* **Diagnostic Console:** Open the live system diagnostics drawer to view OCR engine readiness, ChromaDB collection status, and storage connectivity.
-* **Session Export:** Download complete session activity logs including timestamps, verified files, and auditor signatures.
+### Step 5: Grounded Vector RAG & Cross-Document Verification
+* **ChromaDB Vector Store**: Chunks document text into 500-character semantic blocks with page-level metadata.
+* **Groq Llama-3.3 70B**: Analyzes extracted content against ELA visual findings to produce composite authenticity scores. Cross-verifies multi-document cases (e.g. comparing an applicant's degree certificate against an official transcript).
+* **Conversational Assistant**: Allows investigators to query documents in plain English with citation attribution back to exact chunk sources.
 
 ---
 
-## Core Capabilities
+## Core Capabilities Matrix
 
-| Capability | Engine | Purpose |
+| Capability | Engine / Technology | Cloud-Native Behavior |
 | :--- | :--- | :--- |
-| **OCR Processing** | RapidOCR (PaddleOCR PP-OCRv4 ONNX) | Extracts text from certificates, guilloche watermarks, and scanned IDs without freezing. |
-| **PDF Extraction** | PyMuPDF4LLM (`fitz`) | Generates clean Markdown and structured tables for digital PDFs in milliseconds. |
-| **Tamper Detection** | OpenCV Error Level Analysis (ELA) | Detects digital modifications, copy-paste alterations, and JPEG recompression artifacts. |
-| **Official Seal Detection** | OpenCV HSV Contour Analysis | Identifies official colored ink stamps, circularity ratios, and institutional seals. |
-| **Layout Fingerprinting** | Spatial Geometric Hashing | Computes layout anchor positions to verify conformity against known institutional templates. |
-| **PII Tagging** | Regex & Entity Engine | Detects and tags sensitive identity numbers, bank details, and contact information. |
-| **RAG Intelligence** | ChromaDB + Groq Llama-3.3 | Provides grounded conversational analysis with chunk-level attribution. |
-| **Cloud Storage & Vault** | Google Cloud Storage (GCS) | Direct in-memory streaming of uploads, previews, and ELA forensic overlays with public CDN URLs for Cloud Run. |
-| **Office File Support** | OpenPyXL + Python-DocX | Natively extracts multi-sheet Excel data grids and Word document structures. |
+| **Cloud Storage Vault** | Google Cloud Storage (GCS) | Streams uploaded documents and forensic image overlays directly to cloud bucket. |
+| **Authentication** | OAuth2 + JWT (HS256) + Bcrypt | Encrypted session tokens with 24h expiration and role-based access control. |
+| **OCR Processing** | RapidOCR (PaddleOCR PP-OCRv4 ONNX) | Guilloche-resistant text extraction with bounding box coordinates. |
+| **PDF Extraction** | PyMuPDF4LLM (`fitz`) | Millisecond markdown and table conversion from in-memory byte streams. |
+| **Tamper Detection** | OpenCV Error Level Analysis (ELA) | Detects digital recompression artifacts; uploads public `.jpg` overlays to GCS. |
+| **Official Seal Detection** | OpenCV HSV Contour Isolation | Identifies official colored ink stamps, circularity ratios, and seals. |
+| **Spreadsheet Forensics** | OpenPyXL + In-memory Streams | Multi-sheet data grid extraction and malicious formula detection. |
+| **RAG Intelligence** | ChromaDB + Groq Llama-3.3 70B | Grounded conversational QA with chunk-level distance attribution. |
 
 ---
 
-## User Interface Themes
+## User Interface & Views (`/dashboard`)
 
-DocVerify Enterprise features a theme engine with instant mode toggling:
-* **Light Mode (Default):** Crisp white cards, warm-gray canvas (`#fafafa`), hairline borders (`#e4e4e7`), and dark slate typography.
-* **Dark Mode:** Deep zinc canvas (`#09090b`), elevated panels (`#18181b`), and high-contrast text designed for low-light forensics labs.
+The frontend follows the **Efferd Dashboard-3** visual language with full Light and Dark theme toggling:
+
+1. **Uploads & Metadata (`Uploads & Metadata`)**:
+   * Drag-and-drop file ingestion (PDF, PNG, JPG, XLSX, DOCX, TXT, CSV, JSON).
+   * Format-specific viewport (PDF page viewer, spreadsheet sheet browser, DOCX hierarchy, high-res image zoom).
+   * PII entity breakdown table with confidence percentages.
+2. **Analysis Report (`Analysis Report`)**:
+   * Radial Authenticity Gauge displaying composite integrity score (0% to 100%).
+   * OpenCV ELA comparator with interactive toggle between original scan and cloud-hosted ELA heatmap.
+   * Executive auditor summary and discrepancy checklist.
+   * Export Dossier button generating an audit-ready JSON report.
+3. **Document Map (`Document Map`)**:
+   * Interactive ReactFlow mindmap displaying radial entity graphs, document sections, and metadata links.
+   * Hierarchical tree view for structured inspection.
+4. **Forensic Assistant (`Assistant`)**:
+   * Conversational chatbot grounded strictly in ChromaDB vector chunks.
+   * Source attribution drawer displaying verbatim document excerpts.
+5. **System Diagnostics (`System Diagnostics`)**:
+   * Real-time latency and connectivity monitors for FastAPI, Google Cloud Storage, ChromaDB, and Groq LLM.
 
 ---
 
-## Quick Start & Installation
+## Environment Configuration
+
+Create a `.env` file in the root directory (refer to `.env.example`):
+
+```bash
+# MongoDB Database (Atlas or local)
+MONGO_URI="mongodb+srv://<username>:<password>@cluster.mongodb.net/"
+
+# LLM & Embedding API Keys
+GROQ_API_KEY="gsk_your_groq_api_key_here"
+HF_TOKEN="hf_your_huggingface_token_here"
+
+# Google Cloud Storage (GCS)
+GCP_BUCKET_NAME="docverify-forensics-vault"
+
+# Service Account Credentials (JSON string for Cloud Run or local dev)
+GOOGLE_APPLICATION_CREDENTIALS_JSON='{"type":"service_account","project_id":"your-project-id","private_key":"...","client_email":"..."}'
+
+# JWT Secret Key
+JWT_SECRET_KEY="docverify-enterprise-forensics-secret-key-nist-compliant"
+```
+
+---
+
+## Quick Start & Local Execution
 
 ### Prerequisites
 * Python 3.10+
@@ -134,15 +166,16 @@ DocVerify Enterprise features a theme engine with instant mode toggling:
 ### 1. Backend Setup (FastAPI)
 ```bash
 # Activate virtual environment
-.\.venv\Scripts\activate
+.\.venv\Scripts\activate   # Windows
+source .venv/bin/activate  # Linux / macOS
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Run the FastAPI server
+# Start backend server
 python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 ```
-The API documentation is available at `http://127.0.0.1:8000/docs`.
+Interactive OpenAPI documentation: `http://127.0.0.1:8000/docs`.
 
 ### 2. Frontend Setup (Next.js)
 ```bash
@@ -152,9 +185,33 @@ npm run dev
 ```
 Open `http://localhost:3000` in your browser.
 
+### 3. One-Click Evaluator Login
+* **Email:** `admin@docverify.com`
+* **Password:** `password123`
+* Click **"Auto-fill Credentials"** on the `/login` page to enter directly.
+
 ---
 
-## Enterprise Audit Standards
-* **Cryptographic Hashing:** Every ingested document receives an immutable SHA-256 integrity hash.
-* **Non-Destructive Forensics:** Original evidence files are preserved in read-only format; all visual forensic layers (ELA, bounding boxes) are rendered non-destructively.
-* **Privacy-Compliant:** Sensitive credential findings (PII) are isolated and tagged for regulatory compliance.
+## Cloud Deployment (Google Cloud Run)
+
+Because DocVerify uses **in-memory streaming** with **Google Cloud Storage**, it deploys seamlessly to Cloud Run as a stateless container:
+
+```bash
+# 1. Build & submit Docker image
+gcloud builds submit --tag gcr.io/<PROJECT_ID>/docverify-api
+
+# 2. Deploy to Cloud Run
+gcloud run deploy docverify-api \
+  --image gcr.io/<PROJECT_ID>/docverify-api \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --set-env-vars GCP_BUCKET_NAME="docverify-forensics-vault",GROQ_API_KEY="..."
+```
+
+---
+
+## Enterprise Forensic Standards
+* **SHA-256 Hashing**: Every document receives an immutable cryptographic hash upon streaming.
+* **Non-Destructive Inspection**: Original files remain unaltered in GCS; visual overlays and ELA heatmaps are saved as separate forensic artifacts.
+* **Privacy Compliance**: Discovered PII is isolated and marked for regulatory compliance (GDPR, HIPAA, DPDP).
