@@ -38,7 +38,7 @@ export default function Navbar({
           </div>
 
           {/* Navigation Links (Fully responsive with horizontal scroll if needed) */}
-          <nav className="flex items-center gap-1 p-1 rounded-lg bg-surface-container-low overflow-x-auto scrollbar-none flex-shrink min-w-0">
+          <nav className="flex items-center gap-1 p-1 rounded-lg bg-surface-container-low overflow-x-auto scrollbar-none flex-shrink min-w-0" suppressHydrationWarning>
             {tabs.map((tab) => {
               const isActive = activeTab === tab.id;
               return (
@@ -46,6 +46,7 @@ export default function Navbar({
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   type="button"
+                  suppressHydrationWarning
                   className={`px-3 py-1.5 rounded-lg transition-all font-label-md text-label-md whitespace-nowrap flex-shrink-0 ${
                     isActive
                       ? "bg-surface-container-high text-on-surface font-semibold shadow-xs"

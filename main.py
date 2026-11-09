@@ -1,5 +1,6 @@
 import os
 import uuid
+import asyncio
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -44,8 +45,8 @@ storage_backend = StorageBackend()
 
 # Max upload size: 200 MB
 MAX_UPLOAD_SIZE = 200 * 1024 * 1024
-# Max PDF pages to process
-MAX_PAGES = 50
+# Max PDF pages to process (handles multi-page booklets, textbooks, and multi-sheet files)
+MAX_PAGES = 100
 # Max raw text length before truncation for MongoDB (avoid 16MB limit)
 MAX_RAW_TEXT_LEN = 500_000
 
@@ -117,8 +118,10 @@ async def background_process_document(job_id: str, document_id: str, file_path: 
         jobs_registry[job_id]["status"] = "processing"
         jobs_registry[job_id]["started_at"] = datetime.now(timezone.utc).isoformat()
 
-        # Phase 1: Smart Routing & Multi-Page Extraction
-        routed_result = extract_smart_routed_document(file_path, max_pages=MAX_PAGES)
+        # Phase 1: Smart Routing & Multi-Page Extraction in non-blocking thread
+        routed_result = await asyncio.to_thread(
+            extract_smart_routed_document, file_path, MAX_PAGES, document_id
+        )
         raw_text = routed_result["raw_text"]
         entities = routed_result["entities"]
         image_size = routed_result["image_size"]
@@ -140,14 +143,15 @@ async def background_process_document(job_id: str, document_id: str, file_path: 
         layout_data = generate_layout_fingerprint(entities, image_size)
         template_sig = layout_data["template_signature"]
 
-        # Phase 2: RAG Vectorization & Chunking into ChromaDB
+        # Phase 2: Non-blocking RAG Vectorization & Chunking into ChromaDB
         total_chunks = 0
         for p in pages:
             p_num = p["page_number"]
             p_text = p["text"]
             if len(p_text) > MAX_RAW_TEXT_LEN:
                 p_text = p_text[:MAX_RAW_TEXT_LEN]
-            chunks = chunk_and_vectorize_document(
+            chunks = await asyncio.to_thread(
+                chunk_and_vectorize_document,
                 document_id=document_id,
                 raw_text=p_text,
                 page_number=p_num,
@@ -155,21 +159,27 @@ async def background_process_document(job_id: str, document_id: str, file_path: 
             )
             total_chunks += len(chunks)
 
-        # Build final document record
+        # Build final document record with full multi-page and format metadata
         mongo_document = {
             "document_id": document_id,
             "filename": filename,
             "file_path": file_path,
+            "file_type": routed_result.get("file_type", "document"),
             "document_type": document_type,
             "raw_text": redacted_text,
             "pii_findings": pii_findings,
             "entities": entities,
+            "pages": pages,
             "layout_fingerprint": layout_data["normalized_layout"],
             "template_signature": template_sig,
             "image_size": image_size,
             "total_pages": routed_result.get("total_pages", 1),
             "processed_pages": routed_result.get("processed_pages", 1),
             "total_rag_chunks": total_chunks,
+            "spreadsheet_data": routed_result.get("spreadsheet_data"),
+            "docx_data": routed_result.get("docx_data"),
+            "pdf_metadata": routed_result.get("pdf_metadata"),
+            "json_info": routed_result.get("json_info"),
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
@@ -378,6 +388,7 @@ async def list_documents():
                 "document_id": doc_id,
                 "filename": d.get("filename", "Untitled Document"),
                 "file_path": f_path,
+                "file_type": d.get("file_type") or Path(d.get("filename", "")).suffix.lstrip(".").lower() or "document",
                 "document_type": d.get("document_type", "General Document"),
                 "template_signature": d.get("template_signature", "UNKNOWN"),
                 "created_at": d.get("created_at"),
@@ -404,6 +415,7 @@ async def list_documents():
                         "document_id": doc_id,
                         "filename": d.get("filename", "Untitled Document"),
                         "file_path": f_path,
+                        "file_type": d.get("file_type") or Path(d.get("filename", "")).suffix.lstrip(".").lower() or "document",
                         "document_type": d.get("document_type", "General Document"),
                         "template_signature": d.get("template_signature", "UNKNOWN"),
                         "created_at": d.get("created_at"),
@@ -426,11 +438,13 @@ async def list_documents():
             file_size_bytes = os.path.getsize(f_path) if f_path and os.path.exists(f_path) else 0
             res = job.get("result") or {}
             job_status = job.get("status", "processing")
+            fname = job.get("filename", "Document")
             docs.append({
                 "document_id": doc_id,
                 "job_id": job_id,
-                "filename": job.get("filename", "Document"),
+                "filename": fname,
                 "file_path": f_path,
+                "file_type": Path(fname).suffix.lstrip(".").lower() or "document",
                 "document_type": res.get("document_type", "Processing..."),
                 "template_signature": res.get("template_signature", "PENDING"),
                 "created_at": job.get("submitted_at"),
@@ -673,8 +687,9 @@ async def chat_with_document(payload: ChatRequest):
             content={"error": f"Document '{doc_id}' not found."},
         )
 
-    # Query ChromaDB for relevant chunks
-    rag_chunks = query_relevant_chunks(
+    # Query ChromaDB for relevant chunks in non-blocking thread
+    rag_chunks = await asyncio.to_thread(
+        query_relevant_chunks,
         query_text=payload.question,
         document_ids=[doc_id],
         n_results=payload.n_results,

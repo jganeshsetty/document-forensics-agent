@@ -55,15 +55,74 @@ export interface InvestigationDossier {
   }>;
 }
 
+export interface DocumentPageRecord {
+  page_number: number;
+  text: string;
+  word_count?: number;
+  preview_url?: string;
+  entities?: DocumentEntity[];
+  extraction_method?: string;
+  sheet_name?: string;
+}
+
+export interface SpreadsheetSheet {
+  name: string;
+  row_count: number;
+  col_count: number;
+  headers: string[];
+  sample_rows: string[][];
+  formula_count: number;
+}
+
+export interface SpreadsheetAnomaly {
+  sheet: string;
+  coordinate: string;
+  type: string;
+  formula: string;
+  severity: string;
+}
+
+export interface SpreadsheetData {
+  sheets: SpreadsheetSheet[];
+  total_sheets: number;
+  total_rows: number;
+  total_cols: number;
+  total_formulas: number;
+  anomalies: SpreadsheetAnomaly[];
+}
+
+export interface DocxData {
+  paragraph_count: number;
+  table_count: number;
+  tables: Array<{
+    table_index: number;
+    row_count: number;
+    col_count: number;
+    headers: string[];
+    rows_sample: string[][];
+  }>;
+  properties: Record<string, unknown>;
+}
+
+export interface JsonInfo {
+  is_valid_json: boolean;
+  root_type?: string;
+  keys_count?: number;
+  top_keys?: string[];
+  error?: string;
+}
+
 export interface DocumentRecord {
   document_id: string;
   job_id?: string;
   filename: string;
   file_path: string;
+  file_type?: string;
   document_type: string;
   template_signature: string;
   created_at?: string;
   total_pages: number;
+  processed_pages?: number;
   total_entities: number;
   total_rag_chunks: number;
   pii_findings_count: number;
@@ -80,6 +139,11 @@ export interface DocumentRecord {
   page_image_url?: string;
   annotated_image_url?: string;
   entities?: DocumentEntity[];
+  pages?: DocumentPageRecord[];
+  spreadsheet_data?: SpreadsheetData;
+  docx_data?: DocxData;
+  pdf_metadata?: Record<string, string>;
+  json_info?: JsonInfo;
   layout_fingerprint?: Record<string, unknown>;
 }
 

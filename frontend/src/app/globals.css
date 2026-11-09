@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* =========================================================================
    DocVerify — Enterprise Typography & Local Icon Fonts
    ========================================================================= */
@@ -96,11 +98,16 @@
 html, body {
   margin: 0;
   padding: 0;
-  background-color: #f9f9ff;
-  color: #111c2d;
+  background-color: #fafafa;
+  color: #18181b;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   overscroll-behavior: none;
   -webkit-font-smoothing: antialiased;
+}
+
+html.dark, body.dark, .dark body {
+  background-color: #09090b;
+  color: #fafafa;
 }
 
 /* Stitch Precise Typography Scales */

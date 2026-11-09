@@ -1,14 +1,32 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { DocumentRecord, DocumentEntity, fetchDocuments, fetchDocument } from "@/lib/api";
+import MindmapView from "@/components/MindmapView";
+import {
+  Network,
+  Folder,
+  FileText,
+  KeyRound,
+  Stamp,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+  Search,
+  ChevronRight,
+  ChevronDown,
+  ShieldCheck,
+  ExternalLink,
+  AlertTriangle,
+  RotateCw,
+} from "lucide-react";
 
 interface DocumentConnectionsProps {
   documents?: DocumentRecord[];
   onSelectDocument?: (docId: string) => void;
 }
 
-type SelectedItem =
+type SelectedNodeItem =
   | { type: "root" }
   | { type: "category"; name: string; count: number }
   | { type: "document"; doc: DocumentRecord }
@@ -20,32 +38,62 @@ export default function DocumentConnections({
 }: DocumentConnectionsProps) {
   const [docs, setDocs] = useState<DocumentRecord[]>(initialDocs);
   const [loading, setLoading] = useState(false);
+  const [isError, setIsError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"tree" | "mindmap">("tree");
   const [zoom, setZoom] = useState(1);
   const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [searchNodeQuery, setSearchNodeQuery] = useState("");
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
-  const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
+  const [selectedItem, setSelectedItem] = useState<SelectedNodeItem | null>(null);
   const [fullDocsMap, setFullDocsMap] = useState<Record<string, DocumentRecord>>({});
 
-  // Fetch documents if not provided
+  // Reload function
+  const reloadMapData = () => {
+    setLoading(true);
+    setIsError(null);
+    fetchDocuments()
+      .then((list) => {
+        setDocs(list);
+        if (list.length > 0) {
+          setSelectedItem({ type: "document", doc: list[0] });
+          const firstCat = list[0].document_type || "General Document";
+          setExpandedNodes({
+            [`cat-${firstCat}`]: true,
+            [`doc-${list[0].document_id}`]: true,
+          });
+          fetchDocument(list[0].document_id).then((fullDoc) => {
+            if (fullDoc) {
+              setFullDocsMap((prev) => ({ ...prev, [fullDoc.document_id]: fullDoc }));
+              setSelectedItem({ type: "document", doc: fullDoc });
+            }
+          });
+        }
+      })
+      .catch((err) => {
+        setIsError(err instanceof Error ? err.message : "Failed to load document knowledge map");
+      })
+      .finally(() => setLoading(false));
+  };
+
+  // Fetch documents if not passed
   useEffect(() => {
     let isMounted = true;
     if (initialDocs.length === 0) {
       Promise.resolve().then(() => {
         if (!isMounted) return;
         setLoading(true);
+        setIsError(null);
         fetchDocuments()
           .then((list) => {
             if (!isMounted) return;
             setDocs(list);
             if (list.length > 0) {
               setSelectedItem({ type: "document", doc: list[0] });
-              // Pre-expand first category and first document
               const firstCat = list[0].document_type || "General Document";
               setExpandedNodes({
                 [`cat-${firstCat}`]: true,
                 [`doc-${list[0].document_id}`]: true,
               });
-              // Fetch detailed entity info for the first document
               fetchDocument(list[0].document_id).then((fullDoc) => {
                 if (isMounted && fullDoc) {
                   setFullDocsMap((prev) => ({ ...prev, [fullDoc.document_id]: fullDoc }));
@@ -53,6 +101,9 @@ export default function DocumentConnections({
                 }
               });
             }
+          })
+          .catch((err) => {
+            if (isMounted) setIsError(err instanceof Error ? err.message : "Network error");
           })
           .finally(() => {
             if (isMounted) setLoading(false);
@@ -72,7 +123,6 @@ export default function DocumentConnections({
     };
   }, [initialDocs]);
 
-  // Load detailed document data when a doc node is expanded/clicked
   const handleSelectDoc = async (doc: DocumentRecord) => {
     if (!fullDocsMap[doc.document_id]) {
       try {
@@ -95,7 +145,16 @@ export default function DocumentConnections({
     setExpandedNodes((prev) => ({ ...prev, [nodeKey]: !prev[nodeKey] }));
   };
 
-  // Group documents by category
+  const expandAll = () => {
+    const allExpanded: Record<string, boolean> = {};
+    docs.forEach((d) => {
+      allExpanded[`cat-${d.document_type || "General Document"}`] = true;
+      allExpanded[`doc-${d.document_id}`] = true;
+    });
+    setExpandedNodes(allExpanded);
+  };
+
+  // Group by categories
   const categories = useMemo(() => {
     const map: Record<string, DocumentRecord[]> = {};
     docs.forEach((d) => {
@@ -107,175 +166,219 @@ export default function DocumentConnections({
   }, [docs]);
 
   const categoryNames = Object.keys(categories);
-  const totalEntitiesCount = docs.reduce((acc, d) => acc + (d.total_entities || 0), 0);
+  const totalEntities = docs.reduce((acc, d) => acc + (d.total_entities || 0), 0);
 
   const filteredCategories = useMemo(() => {
-    if (filterCategory === "all") return categories;
-    return { [filterCategory]: categories[filterCategory] || [] };
-  }, [categories, filterCategory]);
+    let base = categories;
+    if (filterCategory !== "all") {
+      base = { [filterCategory]: categories[filterCategory] || [] };
+    }
+    if (!searchNodeQuery.trim()) return base;
+
+    const q = searchNodeQuery.toLowerCase();
+    const result: Record<string, DocumentRecord[]> = {};
+    Object.entries(base).forEach(([cat, catDocs]) => {
+      const matching = catDocs.filter(
+        (d) => d.filename.toLowerCase().includes(q) || cat.toLowerCase().includes(q)
+      );
+      if (matching.length > 0) result[cat] = matching;
+    });
+    return result;
+  }, [categories, filterCategory, searchNodeQuery]);
 
   return (
-    <div className="w-full max-w-[1440px] mx-auto px-6 lg:px-10 py-8 flex flex-col gap-6">
-      {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex flex-col gap-1">
+    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      {/* Top Header & Graph Controls */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 sm:p-5 shadow-2xs">
+        <div>
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full bg-secondary-container text-on-secondary-fixed font-label-sm text-label-sm font-semibold">
-              Forensic Knowledge Tree
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+              Interactive Forensic Map
             </span>
-            <span className="text-secondary font-label-sm text-label-sm">
-              Live ChromaDB & MongoDB Graph
+            <span className="text-zinc-300 dark:text-zinc-700">•</span>
+            <span className="text-xs text-zinc-500">
+              {docs.length} Documents · {totalEntities} Extracted Nodes
             </span>
           </div>
-          <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight font-semibold">
-            Document & Entity Knowledge Map
-          </h1>
-          <p className="font-body-md text-body-md text-on-surface-variant">
-            Explore hierarchical relationships between verified documents, extracted credentials, and structural layout nodes.
-          </p>
+          <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mt-0.5">
+            Document &amp; Entity Knowledge Map
+          </h2>
         </div>
 
-        {/* Toolbar Controls */}
-        <div className="flex flex-wrap items-center gap-2 self-start md:self-auto bg-surface-container-lowest p-1.5 rounded-xl shadow-xs border border-outline-variant/30">
-          <button
-            type="button"
-            onClick={() => setZoom((z) => Math.min(z + 0.1, 1.4))}
-            className="w-9 h-9 rounded-lg hover:bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors"
-            title="Zoom In"
-          >
-            <span className="material-symbols-outlined text-[19px]">zoom_in</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setZoom((z) => Math.max(z - 0.1, 0.7))}
-            className="w-9 h-9 rounded-lg hover:bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors"
-            title="Zoom Out"
-          >
-            <span className="material-symbols-outlined text-[19px]">zoom_out</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setZoom(1)}
-            className="px-3 h-9 rounded-lg hover:bg-surface-container flex items-center gap-1.5 text-on-surface-variant hover:text-on-surface transition-colors font-label-md text-label-md"
-            title="Reset View"
-          >
-            <span className="material-symbols-outlined text-[17px]">restart_alt</span>
-            <span>Reset</span>
-          </button>
-          <div className="w-px h-5 bg-outline-variant/40 mx-1" />
+        {/* Segmented Controls & Actions */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* View Mode Toggle */}
+          <div className="flex items-center bg-zinc-100 dark:bg-zinc-800 p-0.5 rounded-lg">
+            <button
+              type="button"
+              onClick={() => setViewMode("tree")}
+              className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+                viewMode === "tree"
+                  ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-2xs"
+                  : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+              }`}
+            >
+              Tree Map
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("mindmap")}
+              className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+                viewMode === "mindmap"
+                  ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-2xs"
+                  : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+              }`}
+            >
+              Radial Graph
+            </button>
+          </div>
+
+          {/* Search Node */}
+          <div className="relative w-40 sm:w-48">
+            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400" />
+            <input
+              type="text"
+              value={searchNodeQuery}
+              onChange={(e) => setSearchNodeQuery(e.target.value)}
+              placeholder="Filter nodes..."
+              className="w-full h-8 pl-8 pr-2.5 text-xs bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-blue-600"
+            />
+          </div>
+
+          {/* Category Filter */}
           <select
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
-            className="px-3 h-9 rounded-lg bg-surface-container text-on-surface font-label-md text-label-md border-none focus:outline-none focus:ring-1 focus:ring-primary font-medium"
+            className="h-8 px-2.5 text-xs bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-blue-600"
           >
-            <option value="all">All Categories ({categoryNames.length})</option>
-            {categoryNames.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat} ({categories[cat]?.length || 0})
+            <option value="all">All Groups ({categoryNames.length})</option>
+            {categoryNames.map((c) => (
+              <option key={c} value={c}>
+                {c}
               </option>
             ))}
           </select>
-        </div>
-      </div>
 
-      {/* Real Stats Bar */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-surface-container-lowest p-4 rounded-xl shadow-xs flex items-center gap-3.5 border border-outline-variant/20">
-          <div className="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-primary">
-            <span className="material-symbols-outlined text-[20px]">description</span>
-          </div>
-          <div>
-            <p className="font-label-sm text-label-sm text-on-surface-variant uppercase font-semibold">Indexed Files</p>
-            <p className="font-headline-sm text-headline-sm text-on-surface font-semibold">
-              {docs.length} Documents
-            </p>
-          </div>
-        </div>
+          {/* Expand All */}
+          <button
+            type="button"
+            onClick={expandAll}
+            className="px-2.5 h-8 text-xs font-medium text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-750 rounded-lg transition-colors shadow-2xs"
+          >
+            Expand All
+          </button>
 
-        <div className="bg-surface-container-lowest p-4 rounded-xl shadow-xs flex items-center gap-3.5 border border-outline-variant/20">
-          <div className="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-primary-container">
-            <span className="material-symbols-outlined text-[20px]">hub</span>
-          </div>
-          <div>
-            <p className="font-label-sm text-label-sm text-on-surface-variant uppercase font-semibold">Extracted Entities</p>
-            <p className="font-headline-sm text-headline-sm text-on-surface font-semibold">
-              {totalEntitiesCount} Nodes
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-surface-container-lowest p-4 rounded-xl shadow-xs flex items-center gap-3.5 border border-outline-variant/20">
-          <div className="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-secondary">
-            <span className="material-symbols-outlined text-[20px]">category</span>
-          </div>
-          <div>
-            <p className="font-label-sm text-label-sm text-on-surface-variant uppercase font-semibold">Classifications</p>
-            <p className="font-headline-sm text-headline-sm text-on-surface font-semibold">
-              {categoryNames.length} Groups
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-surface-container-lowest p-4 rounded-xl shadow-xs flex items-center gap-3.5 border border-outline-variant/20">
-          <div className="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-tertiary">
-            <span className="material-symbols-outlined text-[20px]">verified</span>
-          </div>
-          <div>
-            <p className="font-label-sm text-label-sm text-on-surface-variant uppercase font-semibold">Integrity Pipeline</p>
-            <p className="font-headline-sm text-headline-sm text-on-surface font-semibold">Audited & Ready</p>
+          {/* Zoom Controls */}
+          <div className="flex items-center bg-zinc-100 dark:bg-zinc-800 p-0.5 rounded-lg">
+            <button
+              type="button"
+              onClick={() => setZoom((z) => Math.max(0.6, z - 0.1))}
+              className="w-6 h-6 flex items-center justify-center text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 rounded"
+              title="Zoom Out"
+            >
+              <ZoomOut className="w-3.5 h-3.5" />
+            </button>
+            <span className="px-2 text-[11px] font-mono text-zinc-600 dark:text-zinc-300">
+              {Math.round(zoom * 100)}%
+            </span>
+            <button
+              type="button"
+              onClick={() => setZoom((z) => Math.min(1.4, z + 0.1))}
+              className="w-6 h-6 flex items-center justify-center text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 rounded"
+              title="Zoom In"
+            >
+              <ZoomIn className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setZoom(1)}
+              className="w-6 h-6 flex items-center justify-center text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 rounded"
+              title="Reset"
+            >
+              <RotateCcw className="w-3 h-3" />
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Main Split View: Tree Explorer (Left) & Node Inspector (Right) */}
+      {/* Main Split: Interactive Dot-Grid Canvas (Left) & Inspector Drawer (Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Tree Canvas */}
-        <div className="lg:col-span-8 bg-surface-container-lowest rounded-2xl shadow-xs border border-outline-variant/20 p-6 min-h-[620px] overflow-auto">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-24 text-secondary gap-3">
-              <span className="material-symbols-outlined text-[36px] animate-spin text-primary">refresh</span>
-              <span className="font-label-md text-label-md">Loading forensic knowledge graph...</span>
+        {/* Canvas Area */}
+        <div className="lg:col-span-8 bg-zinc-50/70 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 min-h-[580px] overflow-auto relative shadow-2xs">
+          {/* Efferd Adaptable Dot-Grid SVG Pattern */}
+          <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-40">
+            <defs>
+              <pattern id="efferd-dots" width="24" height="24" patternUnits="userSpaceOnUse">
+                <circle cx="2" cy="2" r="1" className="fill-zinc-400 dark:fill-zinc-700" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#efferd-dots)" />
+          </svg>
+
+          {isError ? (
+            <div className="relative py-28 text-center text-xs text-rose-600 dark:text-rose-400 flex flex-col items-center justify-center gap-2 z-10">
+              <AlertTriangle className="w-7 h-7 text-rose-500 mb-1" />
+              <span className="font-semibold text-sm">Failed to Load Knowledge Graph</span>
+              <p className="text-zinc-500 max-w-sm">{isError}</p>
+              <button
+                type="button"
+                onClick={reloadMapData}
+                className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200 shadow-2xs hover:bg-zinc-100 transition-colors"
+              >
+                <RotateCw className="w-3.5 h-3.5" />
+                Retry Connection
+              </button>
+            </div>
+          ) : viewMode === "mindmap" ? (
+            <div className="relative z-10 w-full">
+              <MindmapView
+                filename={selectedItem?.type === "document" ? selectedItem.doc.filename : docs[0]?.filename}
+                entities={
+                  selectedItem?.type === "document"
+                    ? fullDocsMap[selectedItem.doc.document_id]?.entities || selectedItem.doc.entities
+                    : docs[0]?.entities
+                }
+              />
+            </div>
+          ) : loading ? (
+            <div className="relative py-28 text-center text-xs text-zinc-400 flex flex-col items-center justify-center gap-2">
+              <Network className="w-6 h-6 animate-pulse text-blue-600" />
+              <span>Constructing knowledge hierarchy...</span>
             </div>
           ) : docs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24 text-center">
-              <div className="w-14 h-14 rounded-2xl bg-surface-container flex items-center justify-center text-secondary mb-3">
-                <span className="material-symbols-outlined text-[28px]">folder_off</span>
-              </div>
-              <h3 className="font-headline-sm text-headline-sm text-on-surface font-semibold">No Documents in Repository</h3>
-              <p className="font-body-md text-body-md text-secondary mt-1">Upload a document to generate its entity connection tree.</p>
+            <div className="relative py-28 text-center text-xs text-zinc-400">
+              No files in the repository. Upload a document to map relationships.
             </div>
           ) : (
             <div
               style={{ transform: `scale(${zoom})`, transformOrigin: "top left" }}
-              className="flex flex-col gap-6 transition-transform duration-200"
+              className="relative transition-transform duration-150 space-y-6"
             >
-              {/* Root Node */}
+              {/* Workspace Root Node */}
               <div
                 onClick={() => setSelectedItem({ type: "root" })}
-                className="inline-flex items-center gap-3 px-4 py-2.5 rounded-xl bg-primary-container text-on-primary font-label-md text-label-md font-semibold shadow-xs cursor-pointer hover:bg-primary transition-colors max-w-fit"
+                className="inline-flex items-center gap-2.5 px-3.5 py-2 rounded-lg bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 text-xs font-semibold shadow-2xs cursor-pointer hover:opacity-90 transition-opacity"
               >
-                <span className="material-symbols-outlined text-[20px]">corporate_fare</span>
-                <span>Verified Forensic Repository ({docs.length} Documents)</span>
+                <ShieldCheck className="w-4 h-4 text-blue-400 dark:text-blue-600" />
+                <span>Forensic Repository Root ({docs.length} Files)</span>
               </div>
 
               {/* Category Branches */}
-              <div className="pl-6 border-l-2 border-primary/20 flex flex-col gap-5 ml-4">
+              <div className="pl-6 border-l-2 border-zinc-200 dark:border-zinc-800 ml-4 space-y-5">
                 {Object.entries(filteredCategories).map(([catName, catDocs]) => {
                   const catKey = `cat-${catName}`;
                   const isCatExpanded = !!expandedNodes[catKey];
 
                   return (
-                    <div key={catKey} className="flex flex-col gap-3">
-                      {/* Category Header */}
+                    <div key={catKey} className="space-y-3">
+                      {/* Category Node */}
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
                           onClick={() => toggleNode(catKey)}
-                          className="w-7 h-7 rounded-md bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface transition-colors"
+                          className="w-6 h-6 rounded bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 shadow-2xs"
                         >
-                          <span className="material-symbols-outlined text-[16px]">
-                            {isCatExpanded ? "expand_more" : "chevron_right"}
-                          </span>
+                          {isCatExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
                         </button>
 
                         <div
@@ -283,13 +386,11 @@ export default function DocumentConnections({
                             toggleNode(catKey);
                             setSelectedItem({ type: "category", name: catName, count: catDocs.length });
                           }}
-                          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-container-low hover:bg-surface-container border border-outline-variant/30 cursor-pointer transition-colors"
+                          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-semibold text-zinc-800 dark:text-zinc-200 cursor-pointer shadow-2xs hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors"
                         >
-                          <span className="material-symbols-outlined text-[18px] text-primary">folder</span>
-                          <span className="font-label-md text-label-md font-semibold text-on-surface">
-                            {catName}
-                          </span>
-                          <span className="px-2 py-0.5 rounded-full bg-surface-container-high text-secondary font-label-sm text-label-sm">
+                          <Folder className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                          <span>{catName}</span>
+                          <span className="px-1.5 py-0.2 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 rounded text-[10px]">
                             {catDocs.length}
                           </span>
                         </div>
@@ -297,7 +398,7 @@ export default function DocumentConnections({
 
                       {/* Documents under Category */}
                       {isCatExpanded && (
-                        <div className="pl-8 border-l-2 border-outline-variant/30 flex flex-col gap-4 ml-3.5">
+                        <div className="pl-6 border-l-2 border-zinc-200 dark:border-zinc-800 ml-3 space-y-3">
                           {catDocs.map((doc) => {
                             const docKey = `doc-${doc.document_id}`;
                             const isDocExpanded = !!expandedNodes[docKey];
@@ -305,17 +406,14 @@ export default function DocumentConnections({
                             const entities = fullDoc.entities || [];
 
                             const credentials = entities.filter(
-                              (e) =>
-                                e.pii_tagged ||
-                                e.text_type === "Heading" ||
-                                e.confidence > 0.8
+                              (e) => e.pii_tagged || e.text_type === "Heading" || e.confidence > 0.85
                             );
                             const visuals = entities.filter(
                               (e) => e.text_type === "Stamp" || e.text_type === "Signature" || e.text_type === "Logo"
                             );
 
                             return (
-                              <div key={docKey} className="flex flex-col gap-2">
+                              <div key={docKey} className="space-y-2">
                                 <div className="flex items-center gap-2">
                                   <button
                                     type="button"
@@ -323,45 +421,37 @@ export default function DocumentConnections({
                                       toggleNode(docKey);
                                       handleSelectDoc(doc);
                                     }}
-                                    className="w-6 h-6 rounded bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface"
+                                    className="w-5 h-5 rounded bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center text-zinc-500 shadow-2xs"
                                   >
-                                    <span className="material-symbols-outlined text-[14px]">
-                                      {isDocExpanded ? "expand_more" : "chevron_right"}
-                                    </span>
+                                    {isDocExpanded ? (
+                                      <ChevronDown className="w-3 h-3" />
+                                    ) : (
+                                      <ChevronRight className="w-3 h-3" />
+                                    )}
                                   </button>
 
                                   <div
                                     onClick={() => handleSelectDoc(doc)}
-                                    className="inline-flex items-center gap-3 px-3.5 py-2 rounded-xl bg-surface-container-lowest hover:bg-surface-container-low border border-outline-variant/30 cursor-pointer shadow-xs transition-colors"
+                                    className="inline-flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-800 dark:text-zinc-200 cursor-pointer shadow-2xs hover:border-blue-500 transition-colors"
                                   >
-                                    <span className="material-symbols-outlined text-[18px] text-secondary">
-                                      article
-                                    </span>
-                                    <div className="flex flex-col">
-                                      <span className="font-label-md text-label-md font-medium text-on-surface">
-                                        {doc.filename}
-                                      </span>
-                                      <span className="font-label-sm text-label-sm text-secondary">
-                                        {doc.total_pages || 1} page(s) · {doc.total_entities || entities.length} entities
-                                      </span>
-                                    </div>
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-secondary-fixed text-primary font-label-sm text-label-sm font-semibold ml-2">
-                                      {doc.status}
+                                    <FileText className="w-3.5 h-3.5 text-zinc-500" />
+                                    <span>{doc.filename}</span>
+                                    <span className="text-[10px] text-zinc-400">
+                                      ({doc.total_entities || entities.length} nodes)
                                     </span>
                                   </div>
                                 </div>
 
-                                {/* Expanded Entities Sub-Tree */}
+                                {/* Extracted Branch Sub-Nodes */}
                                 {isDocExpanded && (
-                                  <div className="pl-7 border-l-2 border-primary/20 flex flex-col gap-2 ml-3 mt-1">
+                                  <div className="pl-6 border-l-2 border-blue-500/30 ml-2.5 space-y-2 pt-1">
                                     {/* Credentials Branch */}
-                                    <div className="flex flex-col gap-1.5">
-                                      <span className="font-label-sm text-label-sm font-semibold text-secondary uppercase flex items-center gap-1">
-                                        <span className="material-symbols-outlined text-[14px]">badge</span>
-                                        Identified Key Credentials ({Math.min(credentials.length, 6)})
+                                    <div className="space-y-1">
+                                      <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-1">
+                                        <KeyRound className="w-3 h-3 text-blue-500" /> Credentials ({credentials.length})
                                       </span>
                                       <div className="flex flex-wrap gap-1.5">
-                                        {credentials.slice(0, 6).map((cred, cIdx) => (
+                                        {credentials.slice(0, 5).map((cred, cIdx) => (
                                           <button
                                             key={cIdx}
                                             type="button"
@@ -373,7 +463,7 @@ export default function DocumentConnections({
                                                 docId: doc.document_id,
                                               })
                                             }
-                                            className="px-2.5 py-1 rounded-lg bg-surface-container hover:bg-primary-container hover:text-on-primary text-on-surface font-label-sm text-label-sm transition-colors border border-outline-variant/20 truncate max-w-[200px]"
+                                            className="px-2 py-0.5 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-blue-500 text-[11px] text-zinc-700 dark:text-zinc-300 truncate max-w-[180px] shadow-2xs transition-colors"
                                           >
                                             {cred.text}
                                           </button>
@@ -381,12 +471,11 @@ export default function DocumentConnections({
                                       </div>
                                     </div>
 
-                                    {/* Visual Artifacts Branch if present */}
+                                    {/* Signatures & Visual Contours */}
                                     {visuals.length > 0 && (
-                                      <div className="flex flex-col gap-1.5 mt-1">
-                                        <span className="font-label-sm text-label-sm font-semibold text-secondary uppercase flex items-center gap-1">
-                                          <span className="material-symbols-outlined text-[14px]">draw</span>
-                                          Signatures & Visuals ({visuals.length})
+                                      <div className="space-y-1 pt-1">
+                                        <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-1">
+                                          <Stamp className="w-3 h-3 text-emerald-500" /> Visual Elements ({visuals.length})
                                         </span>
                                         <div className="flex flex-wrap gap-1.5">
                                           {visuals.map((vis, vIdx) => (
@@ -401,9 +490,9 @@ export default function DocumentConnections({
                                                   docId: doc.document_id,
                                                 })
                                               }
-                                              className="px-2.5 py-1 rounded-lg bg-tertiary-container/30 hover:bg-tertiary text-on-surface font-label-sm text-label-sm transition-colors border border-outline-variant/20"
+                                              className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-[11px] text-emerald-700 dark:text-emerald-300 shadow-2xs"
                                             >
-                                              {vis.text_type}: {vis.text.slice(0, 20)}
+                                              {vis.text_type}
                                             </button>
                                           ))}
                                         </div>
@@ -424,56 +513,41 @@ export default function DocumentConnections({
           )}
         </div>
 
-        {/* Node Detail Inspector Panel (Right) */}
-        <div className="lg:col-span-4 bg-surface-container-lowest rounded-2xl shadow-xs border border-outline-variant/20 p-6 flex flex-col gap-5 sticky top-24">
-          <div className="flex items-center justify-between pb-3 border-b border-outline-variant/20">
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary text-[20px]">troubleshoot</span>
-              <h3 className="font-headline-sm text-headline-sm text-on-surface font-semibold">
-                Entity & Node Inspector
-              </h3>
-            </div>
-            <span className="px-2.5 py-0.5 rounded-full bg-surface-container text-secondary font-label-sm text-label-sm uppercase font-semibold">
-              Live Details
+        {/* Right-Hand Inspector Drawer */}
+        <div className="lg:col-span-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 shadow-2xs space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
+            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+              Entity Inspector
             </span>
+            <span className="text-[10px] text-zinc-400 font-mono">Live Node</span>
           </div>
 
           {selectedItem?.type === "document" && (
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center text-primary">
-                  <span className="material-symbols-outlined text-[22px]">description</span>
+            <div className="space-y-3.5 text-xs">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                  <FileText className="w-4 h-4" />
                 </div>
-                <div className="flex flex-col">
-                  <h4 className="font-label-md text-label-md font-semibold text-on-surface">
+                <div className="truncate">
+                  <h4 className="font-semibold text-zinc-900 dark:text-zinc-100 truncate">
                     {selectedItem.doc.filename}
                   </h4>
-                  <span className="font-label-sm text-label-sm text-secondary">
-                    {selectedItem.doc.document_type || "General Document"}
-                  </span>
+                  <span className="text-[11px] text-zinc-500">{selectedItem.doc.document_type}</span>
                 </div>
               </div>
 
-              <div className="space-y-2.5 bg-surface-container-low rounded-xl p-4 border border-outline-variant/20">
-                <div className="flex items-center justify-between text-body-sm">
-                  <span className="text-secondary">Document ID:</span>
-                  <span className="font-mono text-on-surface text-[12px] truncate max-w-[150px]">
-                    {selectedItem.doc.document_id}
-                  </span>
+              <div className="p-3 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-zinc-400">Pages:</span>
+                  <span className="font-medium">{selectedItem.doc.total_pages || 1}</span>
                 </div>
-                <div className="flex items-center justify-between text-body-sm">
-                  <span className="text-secondary">Total Pages:</span>
-                  <span className="text-on-surface font-medium">{selectedItem.doc.total_pages || 1}</span>
+                <div className="flex justify-between">
+                  <span className="text-zinc-400">Indexed Nodes:</span>
+                  <span className="font-medium text-blue-600 dark:text-blue-400">{selectedItem.doc.total_entities}</span>
                 </div>
-                <div className="flex items-center justify-between text-body-sm">
-                  <span className="text-secondary">Extracted Nodes:</span>
-                  <span className="text-primary font-medium font-semibold">{selectedItem.doc.total_entities}</span>
-                </div>
-                <div className="flex items-center justify-between text-body-sm">
-                  <span className="text-secondary">Status:</span>
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-secondary-fixed text-primary font-label-sm text-label-sm font-semibold">
-                    {selectedItem.doc.status}
-                  </span>
+                <div className="flex justify-between">
+                  <span className="text-zinc-400">Status:</span>
+                  <span className="font-medium text-emerald-600 capitalize">{selectedItem.doc.status}</span>
                 </div>
               </div>
 
@@ -481,55 +555,45 @@ export default function DocumentConnections({
                 <button
                   type="button"
                   onClick={() => onSelectDocument(selectedItem.doc.document_id)}
-                  className="w-full py-2.5 px-4 rounded-xl bg-primary-container text-on-primary hover:bg-primary transition-colors font-label-md text-label-md font-semibold flex items-center justify-center gap-2 shadow-xs"
+                  className="w-full h-8 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-2xs transition-colors flex items-center justify-center gap-1.5"
                 >
-                  <span className="material-symbols-outlined text-[18px]">verified</span>
-                  View Full Forensic Report
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  Open in Analysis Dossier
                 </button>
               )}
             </div>
           )}
 
           {selectedItem?.type === "entity" && (
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center text-primary">
-                  <span className="material-symbols-outlined text-[22px]">badge</span>
-                </div>
-                <div className="flex flex-col">
-                  <h4 className="font-label-md text-label-md font-semibold text-on-surface truncate max-w-[200px]">
-                    {selectedItem.entity.text}
-                  </h4>
-                  <span className="font-label-sm text-label-sm text-secondary">
-                    {selectedItem.entity.text_type} · {selectedItem.docName}
-                  </span>
-                </div>
+            <div className="space-y-3.5 text-xs">
+              <div>
+                <span className="text-[10px] uppercase font-semibold text-blue-600 dark:text-blue-400">
+                  {selectedItem.entity.text_type}
+                </span>
+                <p className="font-semibold text-zinc-900 dark:text-zinc-100 text-sm mt-0.5">
+                  &ldquo;{selectedItem.entity.text}&rdquo;
+                </p>
+                <p className="text-[11px] text-zinc-400 mt-1">Source: {selectedItem.docName}</p>
               </div>
 
-              <div className="space-y-2.5 bg-surface-container-low rounded-xl p-4 border border-outline-variant/20">
-                <div className="flex items-center justify-between text-body-sm">
-                  <span className="text-secondary">Type:</span>
-                  <span className="text-on-surface font-medium">{selectedItem.entity.text_type}</span>
-                </div>
-                <div className="flex items-center justify-between text-body-sm">
-                  <span className="text-secondary">Confidence:</span>
-                  <span className="text-primary font-medium font-semibold">
+              <div className="p-3 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-zinc-400">Confidence:</span>
+                  <span className="font-mono text-emerald-600 font-medium">
                     {Math.round(selectedItem.entity.confidence * 100)}%
                   </span>
                 </div>
-                <div className="flex items-center justify-between text-body-sm">
-                  <span className="text-secondary">Font Size:</span>
-                  <span className="text-on-surface font-medium">{selectedItem.entity.font_size} pt</span>
+                <div className="flex justify-between">
+                  <span className="text-zinc-400">Font Size:</span>
+                  <span className="font-mono">{selectedItem.entity.font_size} pt</span>
                 </div>
-                <div className="flex items-center justify-between text-body-sm">
-                  <span className="text-secondary">Alignment:</span>
-                  <span className="text-on-surface font-medium capitalize">{selectedItem.entity.alignment}</span>
+                <div className="flex justify-between">
+                  <span className="text-zinc-400">Alignment:</span>
+                  <span className="capitalize">{selectedItem.entity.alignment}</span>
                 </div>
-                <div className="flex items-center justify-between text-body-sm">
-                  <span className="text-secondary">Bounding Box:</span>
-                  <span className="font-mono text-on-surface text-[12px]">
-                    [{selectedItem.entity.bounding_box.join(", ")}]
-                  </span>
+                <div className="flex justify-between">
+                  <span className="text-zinc-400">Bounding Box:</span>
+                  <span className="font-mono text-[11px]">[{selectedItem.entity.bounding_box.join(", ")}]</span>
                 </div>
               </div>
 
@@ -537,24 +601,20 @@ export default function DocumentConnections({
                 <button
                   type="button"
                   onClick={() => onSelectDocument(selectedItem.docId)}
-                  className="w-full py-2.5 px-4 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface transition-colors font-label-md text-label-md font-semibold flex items-center justify-center gap-2 border border-outline-variant/30"
+                  className="w-full h-8 text-xs font-medium text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg transition-colors flex items-center justify-center gap-1.5"
                 >
-                  <span className="material-symbols-outlined text-[18px]">visibility</span>
-                  Inspect in Analysis Report
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  View Document Dossier
                 </button>
               )}
             </div>
           )}
 
           {(!selectedItem || selectedItem.type === "root" || selectedItem.type === "category") && (
-            <div className="flex flex-col items-center justify-center py-12 text-center text-secondary">
-              <span className="material-symbols-outlined text-[32px] mb-2 text-outline">touch_app</span>
-              <p className="font-body-md text-body-md text-on-surface-variant font-medium">
-                Click any document node or credential tag
-              </p>
-              <p className="font-body-sm text-body-sm text-secondary mt-1">
-                Inspect coordinates, confidence scores, and layout metrics in real time.
-              </p>
+            <div className="py-12 text-center text-xs text-zinc-400 space-y-1">
+              <Network className="w-6 h-6 mx-auto text-zinc-300 dark:text-zinc-700" />
+              <p className="font-medium text-zinc-600 dark:text-zinc-400">Select any node in the tree</p>
+              <p className="text-[11px]">Inspect coordinates, confidence scores, and layout metrics</p>
             </div>
           )}
         </div>

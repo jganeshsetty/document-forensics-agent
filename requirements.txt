@@ -1,7 +1,8 @@
 fastapi
 uvicorn[standard]
 motor
-pytesseract
+rapidocr-onnxruntime
+pymupdf4llm
 opencv-python-headless
 python-dotenv
 httpx
@@ -15,3 +16,5 @@ minio
 langchain-text-splitters
 sentence-transformers
 chromadb
+openpyxl
+python-docx

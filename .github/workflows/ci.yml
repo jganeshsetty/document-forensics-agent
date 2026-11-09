@@ -68,3 +68,4 @@ jobs:
         run: |
           python -m py_compile main.py
           python -c "import main; print('FastAPI application initialized successfully')"
+

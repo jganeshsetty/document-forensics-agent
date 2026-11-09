@@ -37526,5 +37526,831 @@
     "processed_pages": 1,
     "total_rag_chunks": 1,
     "created_at": "2026-11-08T10:03:33.404623+00:00"
+  },
+  "122790af-76b5-44f7-ae26-b74183482e1d": {
+    "document_id": "122790af-76b5-44f7-ae26-b74183482e1d",
+    "filename": "SchoolDocs AI.pdf",
+    "file_path": "D:\\document-forensics-agent\\uploads\\122790af-76b5-44f7-ae26-b74183482e1d_SchoolDocs AI.pdf",
+    "file_type": "pdf",
+    "document_type": "General Document",
+    "raw_text": "Team Name: 2025cs_jganesh_c            Category: Software Development (EdTech & AI) \n1. Project Title & Problem Statement \nProject Title: SchoolDocs - AI-Based Document Verification and Tamper Detection System for \nEducation ERPs \n \nProblem Statement: During school/college admissions, scholarship applications, and campus \nplacements, students upload thousands of documents such as marksheets, transfer certificates \n(TC), income certificates, and internship letters. Right now, Education ERPs and Job Portals \nonly store these files and depend on staff or recruiters to open and check every single file \nmanually. \n \nThis creates three major problems: \n● Easy to Fake Documents: With free online PDF editors and photo editing tools, anyone \ncan easily change a grade, CGPA, date, or signature on a marksheet in a few minutes. To \nthe human eye, these edited files look completely real. \n● Huge Delays in Admissions and Placements: Checking thousands of student files one \nby one takes weeks for college office staff and HR teams, slowing down seat allotment \nand hiring. \n● High Background Check Costs: External verification agencies charge heavy fees per \ncandidate and take 7 to 14 days, which schools and campus recruiters cannot afford for \nevery student. \n \n2. Proposed Solution \nSchoolDocs is an automated document checking tool built to work directly inside a School \nERP's Management Portal and Recruiter Portal. Instead of just saving uploaded files, our \nsystem scans every marksheet or certificate as soon as a student uploads it and tells the admin \nwithin 3 seconds if the document is genuine or edited. \n \nHow It Works (Step-by-Step): \n \n1. Student Upload: The student uploads their marksheet, TC, or certificate (PDF, JPG, or \nPNG) on the portal. \n2. Three-Level Automated Check: \n○ Image Tampering Check: Uses OpenCV and Error Level Analysis (ELA) to check \nif specific pixels (like marks, roll numbers, or stamps) were edited and re-saved. \n○ PDF Metadata & Font Check: Uses PyMuPDF to read hidden file details. It checks \nif the PDF was modified using editing tools (like Photoshop, Canva, or iLovePDF) \nand detects if a different font was pasted over the original grades. \n○ Template & Marks Matching (RAG): Extracts the text using OCR, checks if the \nsubject marks actually add up to the final total, and compares the document layout \nagainst original board/university templates stored in ChromaDB. \n3. Final Trust Score & Heatmap: The system gives an Authenticity Score (0% to 100%) \nalong with a visual heatmap that highlights the exact edited area in red. \n4. Instant Portal Status: Documents scoring above 90% are marked \"Verified\" for admins \nand recruiters. Suspicious files are flagged for manual checking.\n\n3. Key Features & Unique Value Proposition (UVP) \nKey Features: \n \n● Visual Tamper Heatmap: Shows admins the exact spot on a certificate where numbers \nor text were erased or overwritten. \n● Hidden PDF History Detection: Catches fake PDFs by checking hidden creation dates, \nediting software logs, and mismatched fonts. \n● Automatic Total & Grade Calculation: Reads subject marks via OCR and verifies that \nthe total, percentage, and CGPA math is accurate. \n● Cross-Document Name Matching: Checks that the student's name, DOB, and parent \ndetails match across their Aadhaar card, marksheet, and TC. \n● Verified Badge for Recruiters: Gives companies on the Job Portal a pre-verified badge \non student profiles so they can shortlist candidates with confidence. \n●  \nWhy Our Solution is Unique (UVP): Existing portals only act like Google Drive folders where \nadmins still have to check files manually. Government tools like DigiLocker do not cover college \ninternship certificates, local transfer certificates, or older scanned records. SchoolDocsAI works \ndirectly on normal scanned PDFs and photos, verifying documents in under 3 seconds at almost \nzero cost. \n \n4. Target Users & Expected Benefits \n● School & College Admins (Management Portal): Reduces manual document \nverification work by 80-85% during busy admission and scholarship seasons. \n● Campus Recruiters (Job Portal): Helps HR teams quickly filter and hire genuine \ncandidates without worrying about fake internship letters or altered CGPA sheets. \n● Students (Student Portal): Honest students get faster admission approval and a \n\"Verified Credentials\" tag on their placement profile. \n5. Proposed Technology Stack \n \n● Frontend: Next.js, Tailwind CSS (Clean dashboard for admins to view trust scores and \nheatmaps) \n● Backend: Python, FastAPI (Fast API server to handle file uploads and processing) \n● Image & PDF Checking: OpenCV, Pillow (for Error Level Analysis), PyMuPDF (for PDF \nmetadata and font checking), Tesseract OCR \n● AI & Database: ChromaDB (Vector database for matching original institutional templates \nvia RAG), MongoDB (for storing verification logs) \n● Deployment: Docker, Vercel, Render\n\n6. Innovation Concept & Potential Impact \nInnovation Concept: Instead of relying only on basic OCR (which reads fake text just like real \ntext), SchoolDocs combines Computer Vision (pixel checking) + PDF Internal Structure \nAnalysis + RAG Template Matching in one lightweight pipeline. It does not require schools or \nboards to change how they issue certificates. \nReal-World Impact: \n● Cuts admission and placement document verification time from weeks to just a few hours. \n● Stops fake marksheets, edited income certificates, and fake internship letters at the entry \nstage itself. \n● Can be plugged into any existing School ERP or Placement Portal as a simple API \nmodule.",
+    "pii_findings": [],
+    "entities": [
+      {
+        "type": "Text",
+        "text": "Team Name: 2025cs_jganesh_c            Category: Software Development (EdTech & AI)",
+        "bounding_box": [
+          72,
+          72,
+          438,
+          12
+        ],
+        "confidence": 100.0,
+        "font_size": 12,
+        "text_type": "Body",
+        "alignment": "center",
+        "vertical_spacing": 0,
+        "pixel_intensity": 0.0,
+        "page_number": 1
+      },
+      {
+        "type": "Text",
+        "text": "1. Project Title & Problem Statement",
+        "bounding_box": [
+          72,
+          96,
+          315,
+          20
+        ],
+        "confidence": 100.0,
+        "font_size": 20,
+        "text_type": "Body",
+        "alignment": "center",
+        "vertical_spacing": 0,
+        "pixel_intensity": 0.0,
+        "page_number": 1
+      },
+      {
+        "type": "Text",
+        "text": "Project Title: SchoolDocs - AI-Based Document Verification and Tamper Detection System for \nEducation ERPs \n \nProblem Statement: During school/college admissions, scholarship applications, and campus \nplacements, students upload thousands of documents such as marksheets, transfer certificates \n(TC), income certificates, and internship letters. Right now, Education ERPs and Job Portals \nonly store these files and depend on staff or recruiters to open and check every single file \nmanually. \n \nThis creates three major problems:",
+        "bounding_box": [
+          72,
+          128,
+          469,
+          126
+        ],
+        "confidence": 100.0,
+        "font_size": 126,
+        "text_type": "Heading",
+        "alignment": "center",
+        "vertical_spacing": 0,
+        "pixel_intensity": 0.0,
+        "page_number": 1
+      },
+      {
+        "type": "Text",
+        "text": "● Easy to Fake Documents: With free online PDF editors and photo editing tools, anyone \ncan easily change a grade, CGPA, date, or signature on a marksheet in a few minutes. To \nthe human eye, these edited files look completely real. \n● Huge Delays in Admissions and Placements: Checking thousands of student files one \nby one takes weeks for college office staff and HR teams, slowing down seat allotment \nand hiring. \n● High Background Check Costs: External verification agencies charge heavy fees per \ncandidate and take 7 to 14 days, which schools and campus recruiters cannot afford for \nevery student.",
+        "bounding_box": [
+          72,
+          254,
+          470,
+          126
+        ],
+        "confidence": 100.0,
+        "font_size": 126,
+        "text_type": "Heading",
+        "alignment": "center",
+        "vertical_spacing": 0,
+        "pixel_intensity": 0.0,
+        "page_number": 1
+      },
+      {
+        "type": "Text",
+        "text": "2. Proposed Solution",
+        "bounding_box": [
+          72,
+          392,
+          185,
+          20
+        ],
+        "confidence": 100.0,
+        "font_size": 20,
+        "text_type": "Body",
+        "alignment": "left",
+        "vertical_spacing": 0,
+        "pixel_intensity": 0.0,
+        "page_number": 1
+      },
+      {
+        "type": "Text",
+        "text": "SchoolDocs is an automated document checking tool built to work directly inside a School \nERP's Management Portal and Recruiter Portal. Instead of just saving uploaded files, our \nsystem scans every marksheet or certificate as soon as a student uploads it and tells the admin \nwithin 3 seconds if the document is genuine or edited. \n \nHow It Works (Step-by-Step):",
+        "bounding_box": [
+          72,
+          424,
+          467,
+          88
+        ],
+        "confidence": 100.0,
+        "font_size": 88,
+        "text_type": "Heading",
+        "alignment": "center",
+        "vertical_spacing": 0,
+        "pixel_intensity": 0.0,
+        "page_number": 1
+      },
+      {
+        "type": "Text",
+        "text": "1. Student Upload: The student uploads their marksheet, TC, or certificate (PDF, JPG, or \nPNG) on the portal. \n2. Three-Level Automated Check: \n○ Image Tampering Check: Uses OpenCV and Error Level Analysis (ELA) to check \nif specific pixels (like marks, roll numbers, or stamps) were edited and re-saved. \n○ PDF Metadata & Font Check: Uses PyMuPDF to read hidden file details. It checks \nif the PDF was modified using editing tools (like Photoshop, Canva, or iLovePDF) \nand detects if a different font was pasted over the original grades. \n○ Template & Marks Matching (RAG): Extracts the text using OCR, checks if the \nsubject marks actually add up to the final total, and compares the document layout \nagainst original board/university templates stored in ChromaDB. \n3. Final Trust Score & Heatmap: The system gives an Authenticity Score (0% to 100%) \nalong with a visual heatmap that highlights the exact edited area in red. \n4. Instant Portal Status: Documents scoring above 90% are marked \"Verified\" for admins \nand recruiters. Suspicious files are flagged for manual checking.",
+        "bounding_box": [
+          72,
+          512,
+          469,
+          202
+        ],
+        "confidence": 100.0,
+        "font_size": 202,
+        "text_type": "Heading",
+        "alignment": "center",
+        "vertical_spacing": 0,
+        "pixel_intensity": 0.0,
+        "page_number": 1
+      },
+      {
+        "type": "Text",
+        "text": "3. Key Features & Unique Value Proposition (UVP)",
+        "bounding_box": [
+          72,
+          72,
+          434,
+          20
+        ],
+        "confidence": 100.0,
+        "font_size": 20,
+        "text_type": "Body",
+        "alignment": "center",
+        "vertical_spacing": 0,
+        "pixel_intensity": 0.0,
+        "page_number": 2
+      },
+      {
+        "type": "Text",
+        "text": "Key Features:",
+        "bounding_box": [
+          72,
+          104,
+          75,
+          25
+        ],
+        "confidence": 100.0,
+        "font_size": 25,
+        "text_type": "Body",
+        "alignment": "left",
+        "vertical_spacing": 0,
+        "pixel_intensity": 0.0,
+        "page_number": 2
+      },
+      {
+        "type": "Text",
+        "text": "● Visual Tamper Heatmap: Shows admins the exact spot on a certificate where numbers \nor text were erased or overwritten. \n● Hidden PDF History Detection: Catches fake PDFs by checking hidden creation dates, \nediting software logs, and mismatched fonts. \n● Automatic Total & Grade Calculation: Reads subject marks via OCR and verifies that \nthe total, percentage, and CGPA math is accurate. \n● Cross-Document Name Matching: Checks that the student's name, DOB, and parent \ndetails match across their Aadhaar card, marksheet, and TC. \n● Verified Badge for Recruiters: Gives companies on the Job Portal a pre-verified badge \non student profiles so they can shortlist candidates with confidence. \n●  \nWhy Our Solution is Unique (UVP): Existing portals only act like Google Drive folders where \nadmins still have to check files manually. Government tools like DigiLocker do not cover college \ninternship certificates, local transfer certificates, or older scanned records. SchoolDocsAI works \ndirectly on normal scanned PDFs and photos, verifying documents in under 3 seconds at almost \nzero cost.",
+        "bounding_box": [
+          72,
+          129,
+          470,
+          202
+        ],
+        "confidence": 100.0,
+        "font_size": 202,
+        "text_type": "Heading",
+        "alignment": "center",
+        "vertical_spacing": 0,
+        "pixel_intensity": 0.0,
+        "page_number": 2
+      },
+      {
+        "type": "Text",
+        "text": "4. Target Users & Expected Benefits",
+        "bounding_box": [
+          72,
+          367,
+          314,
+          20
+        ],
+        "confidence": 100.0,
+        "font_size": 20,
+        "text_type": "Body",
+        "alignment": "center",
+        "vertical_spacing": 0,
+        "pixel_intensity": 0.0,
+        "page_number": 2
+      },
+      {
+        "type": "Text",
+        "text": "● School & College Admins (Management Portal): Reduces manual document \nverification work by 80-85% during busy admission and scholarship seasons. \n● Campus Recruiters (Job Portal): Helps HR teams quickly filter and hire genuine \ncandidates without worrying about fake internship letters or altered CGPA sheets. \n● Students (Student Portal): Honest students get faster admission approval and a \n\"Verified Credentials\" tag on their placement profile.",
+        "bounding_box": [
+          84,
+          399,
+          418,
+          75
+        ],
+        "confidence": 100.0,
+        "font_size": 75,
+        "text_type": "Heading",
+        "alignment": "center",
+        "vertical_spacing": 0,
+        "pixel_intensity": 0.0,
+        "page_number": 2
+      },
+      {
+        "type": "Text",
+        "text": "5. Proposed Technology Stack",
+        "bounding_box": [
+          72,
+          486,
+          267,
+          20
+        ],
+        "confidence": 100.0,
+        "font_size": 20,
+        "text_type": "Body",
+        "alignment": "left",
+        "vertical_spacing": 0,
+        "pixel_intensity": 0.0,
+        "page_number": 2
+      },
+      {
+        "type": "Text",
+        "text": "● Frontend: Next.js, Tailwind CSS (Clean dashboard for admins to view trust scores and \nheatmaps) \n● Backend: Python, FastAPI (Fast API server to handle file uploads and processing) \n● Image & PDF Checking: OpenCV, Pillow (for Error Level Analysis), PyMuPDF (for PDF \nmetadata and font checking), Tesseract OCR \n● AI & Database: ChromaDB (Vector database for matching original institutional templates \nvia RAG), MongoDB (for storing verification logs) \n● Deployment: Docker, Vercel, Render",
+        "bounding_box": [
+          72,
+          530,
+          466,
+          164
+        ],
+        "confidence": 100.0,
+        "font_size": 164,
+        "text_type": "Heading",
+        "alignment": "center",
+        "vertical_spacing": 0,
+        "pixel_intensity": 0.0,
+        "page_number": 2
+      },
+      {
+        "type": "Text",
+        "text": "6. Innovation Concept & Potential Impact",
+        "bounding_box": [
+          72,
+          72,
+          355,
+          20
+        ],
+        "confidence": 100.0,
+        "font_size": 20,
+        "text_type": "Body",
+        "alignment": "center",
+        "vertical_spacing": 0,
+        "pixel_intensity": 0.0,
+        "page_number": 3
+      },
+      {
+        "type": "Text",
+        "text": "Innovation Concept: Instead of relying only on basic OCR (which reads fake text just like real \ntext), SchoolDocs combines Computer Vision (pixel checking) + PDF Internal Structure \nAnalysis + RAG Template Matching in one lightweight pipeline. It does not require schools or \nboards to change how they issue certificates. \nReal-World Impact:",
+        "bounding_box": [
+          72,
+          104,
+          465,
+          62
+        ],
+        "confidence": 100.0,
+        "font_size": 62,
+        "text_type": "Heading",
+        "alignment": "center",
+        "vertical_spacing": 0,
+        "pixel_intensity": 0.0,
+        "page_number": 3
+      },
+      {
+        "type": "Text",
+        "text": "● Cuts admission and placement document verification time from weeks to just a few hours. \n● Stops fake marksheets, edited income certificates, and fake internship letters at the entry \nstage itself. \n● Can be plugged into any existing School ERP or Placement Portal as a simple API \nmodule.",
+        "bounding_box": [
+          72,
+          167,
+          469,
+          88
+        ],
+        "confidence": 100.0,
+        "font_size": 88,
+        "text_type": "Heading",
+        "alignment": "center",
+        "vertical_spacing": 0,
+        "pixel_intensity": 0.0,
+        "page_number": 3
+      }
+    ],
+    "pages": [
+      {
+        "page_number": 1,
+        "extraction_method": "PyMuPDF_native",
+        "text": "Team Name: 2025cs_jganesh_c            Category: Software Development (EdTech & AI) \n1. Project Title & Problem Statement \nProject Title: SchoolDocs - AI-Based Document Verification and Tamper Detection System for \nEducation ERPs \n \nProblem Statement: During school/college admissions, scholarship applications, and campus \nplacements, students upload thousands of documents such as marksheets, transfer certificates \n(TC), income certificates, and internship letters. Right now, Education ERPs and Job Portals \nonly store these files and depend on staff or recruiters to open and check every single file \nmanually. \n \nThis creates three major problems: \n● Easy to Fake Documents: With free online PDF editors and photo editing tools, anyone \ncan easily change a grade, CGPA, date, or signature on a marksheet in a few minutes. To \nthe human eye, these edited files look completely real. \n● Huge Delays in Admissions and Placements: Checking thousands of student files one \nby one takes weeks for college office staff and HR teams, slowing down seat allotment \nand hiring. \n● High Background Check Costs: External verification agencies charge heavy fees per \ncandidate and take 7 to 14 days, which schools and campus recruiters cannot afford for \nevery student. \n \n2. Proposed Solution \nSchoolDocs is an automated document checking tool built to work directly inside a School \nERP's Management Portal and Recruiter Portal. Instead of just saving uploaded files, our \nsystem scans every marksheet or certificate as soon as a student uploads it and tells the admin \nwithin 3 seconds if the document is genuine or edited. \n \nHow It Works (Step-by-Step): \n \n1. Student Upload: The student uploads their marksheet, TC, or certificate (PDF, JPG, or \nPNG) on the portal. \n2. Three-Level Automated Check: \n○ Image Tampering Check: Uses OpenCV and Error Level Analysis (ELA) to check \nif specific pixels (like marks, roll numbers, or stamps) were edited and re-saved. \n○ PDF Metadata & Font Check: Uses PyMuPDF to read hidden file details. It checks \nif the PDF was modified using editing tools (like Photoshop, Canva, or iLovePDF) \nand detects if a different font was pasted over the original grades. \n○ Template & Marks Matching (RAG): Extracts the text using OCR, checks if the \nsubject marks actually add up to the final total, and compares the document layout \nagainst original board/university templates stored in ChromaDB. \n3. Final Trust Score & Heatmap: The system gives an Authenticity Score (0% to 100%) \nalong with a visual heatmap that highlights the exact edited area in red. \n4. Instant Portal Status: Documents scoring above 90% are marked \"Verified\" for admins \nand recruiters. Suspicious files are flagged for manual checking.",
+        "entities": [
+          {
+            "type": "Text",
+            "text": "Team Name: 2025cs_jganesh_c            Category: Software Development (EdTech & AI)",
+            "bounding_box": [
+              72,
+              72,
+              438,
+              12
+            ],
+            "confidence": 100.0,
+            "font_size": 12,
+            "text_type": "Body",
+            "alignment": "center",
+            "vertical_spacing": 0,
+            "pixel_intensity": 0.0,
+            "page_number": 1
+          },
+          {
+            "type": "Text",
+            "text": "1. Project Title & Problem Statement",
+            "bounding_box": [
+              72,
+              96,
+              315,
+              20
+            ],
+            "confidence": 100.0,
+            "font_size": 20,
+            "text_type": "Body",
+            "alignment": "center",
+            "vertical_spacing": 0,
+            "pixel_intensity": 0.0,
+            "page_number": 1
+          },
+          {
+            "type": "Text",
+            "text": "Project Title: SchoolDocs - AI-Based Document Verification and Tamper Detection System for \nEducation ERPs \n \nProblem Statement: During school/college admissions, scholarship applications, and campus \nplacements, students upload thousands of documents such as marksheets, transfer certificates \n(TC), income certificates, and internship letters. Right now, Education ERPs and Job Portals \nonly store these files and depend on staff or recruiters to open and check every single file \nmanually. \n \nThis creates three major problems:",
+            "bounding_box": [
+              72,
+              128,
+              469,
+              126
+            ],
+            "confidence": 100.0,
+            "font_size": 126,
+            "text_type": "Heading",
+            "alignment": "center",
+            "vertical_spacing": 0,
+            "pixel_intensity": 0.0,
+            "page_number": 1
+          },
+          {
+            "type": "Text",
+            "text": "● Easy to Fake Documents: With free online PDF editors and photo editing tools, anyone \ncan easily change a grade, CGPA, date, or signature on a marksheet in a few minutes. To \nthe human eye, these edited files look completely real. \n● Huge Delays in Admissions and Placements: Checking thousands of student files one \nby one takes weeks for college office staff and HR teams, slowing down seat allotment \nand hiring. \n● High Background Check Costs: External verification agencies charge heavy fees per \ncandidate and take 7 to 14 days, which schools and campus recruiters cannot afford for \nevery student.",
+            "bounding_box": [
+              72,
+              254,
+              470,
+              126
+            ],
+            "confidence": 100.0,
+            "font_size": 126,
+            "text_type": "Heading",
+            "alignment": "center",
+            "vertical_spacing": 0,
+            "pixel_intensity": 0.0,
+            "page_number": 1
+          },
+          {
+            "type": "Text",
+            "text": "2. Proposed Solution",
+            "bounding_box": [
+              72,
+              392,
+              185,
+              20
+            ],
+            "confidence": 100.0,
+            "font_size": 20,
+            "text_type": "Body",
+            "alignment": "left",
+            "vertical_spacing": 0,
+            "pixel_intensity": 0.0,
+            "page_number": 1
+          },
+          {
+            "type": "Text",
+            "text": "SchoolDocs is an automated document checking tool built to work directly inside a School \nERP's Management Portal and Recruiter Portal. Instead of just saving uploaded files, our \nsystem scans every marksheet or certificate as soon as a student uploads it and tells the admin \nwithin 3 seconds if the document is genuine or edited. \n \nHow It Works (Step-by-Step):",
+            "bounding_box": [
+              72,
+              424,
+              467,
+              88
+            ],
+            "confidence": 100.0,
+            "font_size": 88,
+            "text_type": "Heading",
+            "alignment": "center",
+            "vertical_spacing": 0,
+            "pixel_intensity": 0.0,
+            "page_number": 1
+          },
+          {
+            "type": "Text",
+            "text": "1. Student Upload: The student uploads their marksheet, TC, or certificate (PDF, JPG, or \nPNG) on the portal. \n2. Three-Level Automated Check: \n○ Image Tampering Check: Uses OpenCV and Error Level Analysis (ELA) to check \nif specific pixels (like marks, roll numbers, or stamps) were edited and re-saved. \n○ PDF Metadata & Font Check: Uses PyMuPDF to read hidden file details. It checks \nif the PDF was modified using editing tools (like Photoshop, Canva, or iLovePDF) \nand detects if a different font was pasted over the original grades. \n○ Template & Marks Matching (RAG): Extracts the text using OCR, checks if the \nsubject marks actually add up to the final total, and compares the document layout \nagainst original board/university templates stored in ChromaDB. \n3. Final Trust Score & Heatmap: The system gives an Authenticity Score (0% to 100%) \nalong with a visual heatmap that highlights the exact edited area in red. \n4. Instant Portal Status: Documents scoring above 90% are marked \"Verified\" for admins \nand recruiters. Suspicious files are flagged for manual checking.",
+            "bounding_box": [
+              72,
+              512,
+              469,
+              202
+            ],
+            "confidence": 100.0,
+            "font_size": 202,
+            "text_type": "Heading",
+            "alignment": "center",
+            "vertical_spacing": 0,
+            "pixel_intensity": 0.0,
+            "page_number": 1
+          }
+        ],
+        "word_count": 419,
+        "preview_url": "/uploads/previews/122790af-76b5-44f7-ae26-b74183482e1d_page_1.png"
+      },
+      {
+        "page_number": 2,
+        "extraction_method": "PyMuPDF_native",
+        "text": "3. Key Features & Unique Value Proposition (UVP) \nKey Features: \n \n● Visual Tamper Heatmap: Shows admins the exact spot on a certificate where numbers \nor text were erased or overwritten. \n● Hidden PDF History Detection: Catches fake PDFs by checking hidden creation dates, \nediting software logs, and mismatched fonts. \n● Automatic Total & Grade Calculation: Reads subject marks via OCR and verifies that \nthe total, percentage, and CGPA math is accurate. \n● Cross-Document Name Matching: Checks that the student's name, DOB, and parent \ndetails match across their Aadhaar card, marksheet, and TC. \n● Verified Badge for Recruiters: Gives companies on the Job Portal a pre-verified badge \non student profiles so they can shortlist candidates with confidence. \n●  \nWhy Our Solution is Unique (UVP): Existing portals only act like Google Drive folders where \nadmins still have to check files manually. Government tools like DigiLocker do not cover college \ninternship certificates, local transfer certificates, or older scanned records. SchoolDocsAI works \ndirectly on normal scanned PDFs and photos, verifying documents in under 3 seconds at almost \nzero cost. \n \n4. Target Users & Expected Benefits \n● School & College Admins (Management Portal): Reduces manual document \nverification work by 80-85% during busy admission and scholarship seasons. \n● Campus Recruiters (Job Portal): Helps HR teams quickly filter and hire genuine \ncandidates without worrying about fake internship letters or altered CGPA sheets. \n● Students (Student Portal): Honest students get faster admission approval and a \n\"Verified Credentials\" tag on their placement profile. \n5. Proposed Technology Stack \n \n● Frontend: Next.js, Tailwind CSS (Clean dashboard for admins to view trust scores and \nheatmaps) \n● Backend: Python, FastAPI (Fast API server to handle file uploads and processing) \n● Image & PDF Checking: OpenCV, Pillow (for Error Level Analysis), PyMuPDF (for PDF \nmetadata and font checking), Tesseract OCR \n● AI & Database: ChromaDB (Vector database for matching original institutional templates \nvia RAG), MongoDB (for storing verification logs) \n● Deployment: Docker, Vercel, Render",
+        "entities": [
+          {
+            "type": "Text",
+            "text": "3. Key Features & Unique Value Proposition (UVP)",
+            "bounding_box": [
+              72,
+              72,
+              434,
+              20
+            ],
+            "confidence": 100.0,
+            "font_size": 20,
+            "text_type": "Body",
+            "alignment": "center",
+            "vertical_spacing": 0,
+            "pixel_intensity": 0.0,
+            "page_number": 2
+          },
+          {
+            "type": "Text",
+            "text": "Key Features:",
+            "bounding_box": [
+              72,
+              104,
+              75,
+              25
+            ],
+            "confidence": 100.0,
+            "font_size": 25,
+            "text_type": "Body",
+            "alignment": "left",
+            "vertical_spacing": 0,
+            "pixel_intensity": 0.0,
+            "page_number": 2
+          },
+          {
+            "type": "Text",
+            "text": "● Visual Tamper Heatmap: Shows admins the exact spot on a certificate where numbers \nor text were erased or overwritten. \n● Hidden PDF History Detection: Catches fake PDFs by checking hidden creation dates, \nediting software logs, and mismatched fonts. \n● Automatic Total & Grade Calculation: Reads subject marks via OCR and verifies that \nthe total, percentage, and CGPA math is accurate. \n● Cross-Document Name Matching: Checks that the student's name, DOB, and parent \ndetails match across their Aadhaar card, marksheet, and TC. \n● Verified Badge for Recruiters: Gives companies on the Job Portal a pre-verified badge \non student profiles so they can shortlist candidates with confidence. \n●  \nWhy Our Solution is Unique (UVP): Existing portals only act like Google Drive folders where \nadmins still have to check files manually. Government tools like DigiLocker do not cover college \ninternship certificates, local transfer certificates, or older scanned records. SchoolDocsAI works \ndirectly on normal scanned PDFs and photos, verifying documents in under 3 seconds at almost \nzero cost.",
+            "bounding_box": [
+              72,
+              129,
+              470,
+              202
+            ],
+            "confidence": 100.0,
+            "font_size": 202,
+            "text_type": "Heading",
+            "alignment": "center",
+            "vertical_spacing": 0,
+            "pixel_intensity": 0.0,
+            "page_number": 2
+          },
+          {
+            "type": "Text",
+            "text": "4. Target Users & Expected Benefits",
+            "bounding_box": [
+              72,
+              367,
+              314,
+              20
+            ],
+            "confidence": 100.0,
+            "font_size": 20,
+            "text_type": "Body",
+            "alignment": "center",
+            "vertical_spacing": 0,
+            "pixel_intensity": 0.0,
+            "page_number": 2
+          },
+          {
+            "type": "Text",
+            "text": "● School & College Admins (Management Portal): Reduces manual document \nverification work by 80-85% during busy admission and scholarship seasons. \n● Campus Recruiters (Job Portal): Helps HR teams quickly filter and hire genuine \ncandidates without worrying about fake internship letters or altered CGPA sheets. \n● Students (Student Portal): Honest students get faster admission approval and a \n\"Verified Credentials\" tag on their placement profile.",
+            "bounding_box": [
+              84,
+              399,
+              418,
+              75
+            ],
+            "confidence": 100.0,
+            "font_size": 75,
+            "text_type": "Heading",
+            "alignment": "center",
+            "vertical_spacing": 0,
+            "pixel_intensity": 0.0,
+            "page_number": 2
+          },
+          {
+            "type": "Text",
+            "text": "5. Proposed Technology Stack",
+            "bounding_box": [
+              72,
+              486,
+              267,
+              20
+            ],
+            "confidence": 100.0,
+            "font_size": 20,
+            "text_type": "Body",
+            "alignment": "left",
+            "vertical_spacing": 0,
+            "pixel_intensity": 0.0,
+            "page_number": 2
+          },
+          {
+            "type": "Text",
+            "text": "● Frontend: Next.js, Tailwind CSS (Clean dashboard for admins to view trust scores and \nheatmaps) \n● Backend: Python, FastAPI (Fast API server to handle file uploads and processing) \n● Image & PDF Checking: OpenCV, Pillow (for Error Level Analysis), PyMuPDF (for PDF \nmetadata and font checking), Tesseract OCR \n● AI & Database: ChromaDB (Vector database for matching original institutional templates \nvia RAG), MongoDB (for storing verification logs) \n● Deployment: Docker, Vercel, Render",
+            "bounding_box": [
+              72,
+              530,
+              466,
+              164
+            ],
+            "confidence": 100.0,
+            "font_size": 164,
+            "text_type": "Heading",
+            "alignment": "center",
+            "vertical_spacing": 0,
+            "pixel_intensity": 0.0,
+            "page_number": 2
+          }
+        ],
+        "word_count": 320,
+        "preview_url": "/uploads/previews/122790af-76b5-44f7-ae26-b74183482e1d_page_2.png"
+      },
+      {
+        "page_number": 3,
+        "extraction_method": "PyMuPDF_native",
+        "text": "6. Innovation Concept & Potential Impact \nInnovation Concept: Instead of relying only on basic OCR (which reads fake text just like real \ntext), SchoolDocs combines Computer Vision (pixel checking) + PDF Internal Structure \nAnalysis + RAG Template Matching in one lightweight pipeline. It does not require schools or \nboards to change how they issue certificates. \nReal-World Impact: \n● Cuts admission and placement document verification time from weeks to just a few hours. \n● Stops fake marksheets, edited income certificates, and fake internship letters at the entry \nstage itself. \n● Can be plugged into any existing School ERP or Placement Portal as a simple API \nmodule.",
+        "entities": [
+          {
+            "type": "Text",
+            "text": "6. Innovation Concept & Potential Impact",
+            "bounding_box": [
+              72,
+              72,
+              355,
+              20
+            ],
+            "confidence": 100.0,
+            "font_size": 20,
+            "text_type": "Body",
+            "alignment": "center",
+            "vertical_spacing": 0,
+            "pixel_intensity": 0.0,
+            "page_number": 3
+          },
+          {
+            "type": "Text",
+            "text": "Innovation Concept: Instead of relying only on basic OCR (which reads fake text just like real \ntext), SchoolDocs combines Computer Vision (pixel checking) + PDF Internal Structure \nAnalysis + RAG Template Matching in one lightweight pipeline. It does not require schools or \nboards to change how they issue certificates. \nReal-World Impact:",
+            "bounding_box": [
+              72,
+              104,
+              465,
+              62
+            ],
+            "confidence": 100.0,
+            "font_size": 62,
+            "text_type": "Heading",
+            "alignment": "center",
+            "vertical_spacing": 0,
+            "pixel_intensity": 0.0,
+            "page_number": 3
+          },
+          {
+            "type": "Text",
+            "text": "● Cuts admission and placement document verification time from weeks to just a few hours. \n● Stops fake marksheets, edited income certificates, and fake internship letters at the entry \nstage itself. \n● Can be plugged into any existing School ERP or Placement Portal as a simple API \nmodule.",
+            "bounding_box": [
+              72,
+              167,
+              469,
+              88
+            ],
+            "confidence": 100.0,
+            "font_size": 88,
+            "text_type": "Heading",
+            "alignment": "center",
+            "vertical_spacing": 0,
+            "pixel_intensity": 0.0,
+            "page_number": 3
+          }
+        ],
+        "word_count": 105,
+        "preview_url": "/uploads/previews/122790af-76b5-44f7-ae26-b74183482e1d_page_3.png"
+      }
+    ],
+    "layout_fingerprint": [
+      {
+        "type": "Text",
+        "text_type": "Body",
+        "normalized_box": [
+          0.118,
+          0.091,
+          0.716,
+          0.015
+        ],
+        "alignment": "center"
+      },
+      {
+        "type": "Text",
+        "text_type": "Body",
+        "normalized_box": [
+          0.118,
+          0.121,
+          0.515,
+          0.025
+        ],
+        "alignment": "center"
+      },
+      {
+        "type": "Text",
+        "text_type": "Heading",
+        "normalized_box": [
+          0.118,
+          0.162,
+          0.766,
+          0.159
+        ],
+        "alignment": "center"
+      },
+      {
+        "type": "Text",
+        "text_type": "Heading",
+        "normalized_box": [
+          0.118,
+          0.321,
+          0.768,
+          0.159
+        ],
+        "alignment": "center"
+      },
+      {
+        "type": "Text",
+        "text_type": "Body",
+        "normalized_box": [
+          0.118,
+          0.495,
+          0.302,
+          0.025
+        ],
+        "alignment": "left"
+      },
+      {
+        "type": "Text",
+        "text_type": "Heading",
+        "normalized_box": [
+          0.118,
+          0.535,
+          0.763,
+          0.111
+        ],
+        "alignment": "center"
+      },
+      {
+        "type": "Text",
+        "text_type": "Heading",
+        "normalized_box": [
+          0.118,
+          0.646,
+          0.766,
+          0.255
+        ],
+        "alignment": "center"
+      },
+      {
+        "type": "Text",
+        "text_type": "Body",
+        "normalized_box": [
+          0.118,
+          0.091,
+          0.709,
+          0.025
+        ],
+        "alignment": "center"
+      },
+      {
+        "type": "Text",
+        "text_type": "Body",
+        "normalized_box": [
+          0.118,
+          0.131,
+          0.123,
+          0.032
+        ],
+        "alignment": "left"
+      },
+      {
+        "type": "Text",
+        "text_type": "Heading",
+        "normalized_box": [
+          0.118,
+          0.163,
+          0.768,
+          0.255
+        ],
+        "alignment": "center"
+      },
+      {
+        "type": "Text",
+        "text_type": "Body",
+        "normalized_box": [
+          0.118,
+          0.463,
+          0.513,
+          0.025
+        ],
+        "alignment": "center"
+      },
+      {
+        "type": "Text",
+        "text_type": "Heading",
+        "normalized_box": [
+          0.137,
+          0.504,
+          0.683,
+          0.095
+        ],
+        "alignment": "center"
+      },
+      {
+        "type": "Text",
+        "text_type": "Body",
+        "normalized_box": [
+          0.118,
+          0.614,
+          0.436,
+          0.025
+        ],
+        "alignment": "left"
+      },
+      {
+        "type": "Text",
+        "text_type": "Heading",
+        "normalized_box": [
+          0.118,
+          0.669,
+          0.761,
+          0.207
+        ],
+        "alignment": "center"
+      },
+      {
+        "type": "Text",
+        "text_type": "Body",
+        "normalized_box": [
+          0.118,
+          0.091,
+          0.58,
+          0.025
+        ],
+        "alignment": "center"
+      },
+      {
+        "type": "Text",
+        "text_type": "Heading",
+        "normalized_box": [
+          0.118,
+          0.131,
+          0.76,
+          0.078
+        ],
+        "alignment": "center"
+      },
+      {
+        "type": "Text",
+        "text_type": "Heading",
+        "normalized_box": [
+          0.118,
+          0.211,
+          0.766,
+          0.111
+        ],
+        "alignment": "center"
+      }
+    ],
+    "template_signature": "b5954bfc7aedb4b5",
+    "image_size": [
+      612,
+      792
+    ],
+    "total_pages": 3,
+    "processed_pages": 3,
+    "total_rag_chunks": 13,
+    "spreadsheet_data": null,
+    "docx_data": null,
+    "pdf_metadata": {
+      "format": "PDF 1.7",
+      "creator": "Microsoft® Word 2024",
+      "producer": "Microsoft® Word 2024",
+      "creationDate": "D:20261108221953+05'30'",
+      "modDate": "D:20261108221953+05'30'"
+    },
+    "json_info": null,
+    "created_at": "2026-11-09T08:16:42.043991+00:00"
   }
 }
