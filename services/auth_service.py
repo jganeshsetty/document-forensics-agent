@@ -160,34 +160,37 @@ async def save_user(user_data: Dict[str, Any]) -> Dict[str, Any]:
     return user_data
 
 
+DEFAULT_DIRECT_USER = {
+    "email": "admin@officedocuments.com",
+    "full_name": "Lead Analyst",
+    "role": "Lead Forensic Investigator",
+    "organization": "officedocuments Enterprise",
+    "created_at": "2026-01-01T00:00:00+00:00",
+}
+
+
 async def seed_default_admin():
-    """Seed test user admin@docverify.com / password123 on server startup."""
-    admin_email = "admin@docverify.com"
+    """Seed test user admin@officedocuments.com on server startup."""
+    admin_email = "admin@officedocuments.com"
     existing = await get_user_by_email(admin_email)
     if not existing:
         admin_user = {
             "email": admin_email,
             "hashed_password": hash_password("password123"),
-            "full_name": "Forensic Administrator",
+            "full_name": "Lead Analyst",
             "role": "Lead Forensic Investigator",
-            "organization": "DocVerify Enterprise Security",
+            "organization": "officedocuments Enterprise",
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
         await save_user(admin_user)
-        print(f"[AUTH] Seeded default test user: {admin_email} / password123")
+        print(f"[AUTH] Seeded default user: {admin_email}")
 
 
 async def get_current_user(
     request: Request,
     token: Optional[str] = Depends(oauth2_scheme),
 ) -> Dict[str, Any]:
-    """Dependency that verifies the JWT token from Bearer header or cookies."""
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Authentication credentials were not provided or have expired.",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-
+    """Direct access dependency: verifies JWT token if present, otherwise provides direct user session."""
     auth_token = token
     if not auth_token:
         # Fallback to Authorization header manually
@@ -195,19 +198,12 @@ async def get_current_user(
         if auth_header and auth_header.startswith("Bearer "):
             auth_token = auth_header.split(" ", 1)[1].strip()
 
-    if not auth_token:
-        raise credentials_exception
+    if auth_token:
+        payload = decode_access_token(auth_token)
+        if payload and payload.get("sub"):
+            user = await get_user_by_email(payload.get("sub"))
+            if user:
+                return user
 
-    payload = decode_access_token(auth_token)
-    if payload is None:
-        raise credentials_exception
-
-    email: Optional[str] = payload.get("sub")
-    if not email:
-        raise credentials_exception
-
-    user = await get_user_by_email(email)
-    if user is None:
-        raise credentials_exception
-
-    return user
+    # Direct seamless access without 401 blocking
+    return DEFAULT_DIRECT_USER

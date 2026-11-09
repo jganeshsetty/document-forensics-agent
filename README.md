@@ -1,4 +1,4 @@
-# DocVerify Enterprise — AI Document Forensics & Tamper Intelligence
+# officedocuments Enterprise — AI Document Forensics & Tamper Intelligence
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.109+-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![Next.js](https://img.shields.io/badge/Next.js-16+-black.svg?logo=next.js&logoColor=white)](https://nextjs.org)
@@ -8,13 +8,13 @@
 [![Groq Llama-3.3](https://img.shields.io/badge/Groq-Llama--3.3--70B-orange.svg)](https://groq.com)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-v3-38bdf8.svg?logo=tailwind-css&logoColor=white)](https://tailwindcss.com)
 
-**DocVerify Enterprise** is an autonomous, cloud-native document forensics and verification platform engineered to detect digital tampering, verify credentials, and extract structural data across academic marks cards, identity documents, legal certificates, spreadsheets, and enterprise PDFs.
+**officedocuments Enterprise** is an autonomous, cloud-native document forensics and verification platform engineered to detect digital tampering, verify credentials, and extract structural data across academic marks cards, identity documents, legal certificates, spreadsheets, and enterprise PDFs.
 
 Now wired with **Google Cloud Storage (GCS)** for fully stateless, containerized **Google Cloud Run** deployment.
 
 ---
 
-## How DocVerify Works (End-to-End Workflow)
+## How officedocuments Works (End-to-End Workflow)
 
 ```mermaid
 flowchart TD
@@ -64,7 +64,7 @@ flowchart TD
 ### Step 1: Authentication & Access Control
 * **Landing Page (`/`)**: Product showcase highlighting document forensic capabilities, court admissibility standards, and architectural breakdown.
 * **Authentication Portal (`/login`)**: Secure authentication supporting user registration (`POST /register`) and JWT token generation (`POST /token`) with bcrypt password hashing.
-* **Evaluator Test Access**: Seeded with default credentials (`admin@docverify.com` / `password123`) with a 1-click **Auto-fill** button.
+* **Direct Platform Access**: Instant access to forensics workspace without mandatory login barrier, with pre-configured evaluator session (`admin@officedocuments.com`).
 * **Client-Side Route Guard**: All dashboard views (`/dashboard`, `/workspace`) verify active JWT bearer tokens, redirecting unauthenticated requests.
 
 ### Step 2: Cloud Ingestion (Google Cloud Storage Streaming)
@@ -194,19 +194,19 @@ Open `http://localhost:3000` in your browser.
 
 ## Cloud Deployment (Google Cloud Run)
 
-Because DocVerify uses **in-memory streaming** with **Google Cloud Storage**, it deploys seamlessly to Cloud Run as a stateless container:
+Because **officedocuments** uses **in-memory streaming** with **Google Cloud Storage**, it deploys seamlessly to Cloud Run as a stateless container:
 
 ```bash
 # 1. Build & submit Docker image
-gcloud builds submit --tag gcr.io/<PROJECT_ID>/docverify-api
+gcloud builds submit --tag gcr.io/<PROJECT_ID>/officedocuments-api
 
 # 2. Deploy to Cloud Run
-gcloud run deploy docverify-api \
-  --image gcr.io/<PROJECT_ID>/docverify-api \
+gcloud run deploy officedocuments-api \
+  --image gcr.io/<PROJECT_ID>/officedocuments-api \
   --platform managed \
   --region us-central1 \
   --allow-unauthenticated \
-  --set-env-vars GCP_BUCKET_NAME="docverify-forensics-vault",GROQ_API_KEY="..."
+  --set-env-vars GCP_BUCKET_NAME="officedocuments-forensics-vault",GROQ_API_KEY="..."
 ```
 
 ---

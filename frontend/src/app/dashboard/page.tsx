@@ -48,11 +48,9 @@ export default function DashboardPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
 
-  // Route Guard: Redirect to /login if unauthenticated
+  // Direct access: No login gating required
   useEffect(() => {
-    if (!isAuthenticated()) {
-      router.replace("/login");
-    }
+    // Direct platform access enabled
   }, [router]);
 
   // Export audit log
@@ -78,7 +76,7 @@ export default function DashboardPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `DocVerify_Session_Audit_${Date.now()}.json`;
+      a.download = `officedocuments_Session_Audit_${Date.now()}.json`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {

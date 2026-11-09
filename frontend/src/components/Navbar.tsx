@@ -33,7 +33,7 @@ export default function Navbar({
               <span className="material-symbols-outlined text-[20px]">verified_user</span>
             </div>
             <span className="font-headline-sm text-headline-sm text-on-surface tracking-tight font-semibold hidden xs:inline sm:inline">
-              DocVerify
+              officedocuments
             </span>
           </div>
 

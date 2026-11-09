@@ -227,27 +227,35 @@ export interface AuthResponse {
   user: AuthUser;
 }
 
-const TOKEN_KEY = "docverify_token";
-const USER_KEY = "docverify_user";
+const TOKEN_KEY = "officedocuments_token";
+const USER_KEY = "officedocuments_user";
 
-export function getAuthToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(TOKEN_KEY);
+const DEFAULT_ANALYST_USER: AuthUser = {
+  email: "admin@officedocuments.com",
+  full_name: "Document Analyst",
+  role: "Lead Forensic Investigator",
+  organization: "officedocuments Enterprise",
+  created_at: "2026-01-01T00:00:00Z",
+};
+
+export function getAuthToken(): string {
+  if (typeof window === "undefined") return "officedocuments_direct_token";
+  return localStorage.getItem(TOKEN_KEY) || "officedocuments_direct_token";
 }
 
-export function getStoredUser(): AuthUser | null {
-  if (typeof window === "undefined") return null;
+export function getStoredUser(): AuthUser {
+  if (typeof window === "undefined") return DEFAULT_ANALYST_USER;
   const raw = localStorage.getItem(USER_KEY);
-  if (!raw) return null;
+  if (!raw) return DEFAULT_ANALYST_USER;
   try {
     return JSON.parse(raw);
   } catch {
-    return null;
+    return DEFAULT_ANALYST_USER;
   }
 }
 
 export function isAuthenticated(): boolean {
-  return !!getAuthToken();
+  return true;
 }
 
 export function setAuthSession(token: string, user: AuthUser) {
@@ -260,15 +268,13 @@ export function logout() {
   if (typeof window === "undefined") return;
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
-  window.location.replace("/login");
+  window.location.replace("/dashboard");
 }
 
 export function getAuthHeaders(extraHeaders: Record<string, string> = {}): Record<string, string> {
   const token = getAuthToken();
   const headers: Record<string, string> = { ...extraHeaders };
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
+  headers["Authorization"] = `Bearer ${token}`;
   return headers;
 }
 

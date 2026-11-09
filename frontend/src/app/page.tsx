@@ -33,7 +33,7 @@ export default function LandingPage() {
                 <ShieldCheck className="w-5 h-5" />
               </div>
               <span className="font-semibold text-base sm:text-lg tracking-tight text-zinc-900 dark:text-zinc-100">
-                DocVerify
+                officedocuments
               </span>
             </Link>
 
@@ -71,12 +71,12 @@ export default function LandingPage() {
               )}
             </button>
 
-            {/* Sign In / Enter Button */}
+            {/* Enter Platform Button */}
             <Link
-              href="/login"
+              href="/dashboard"
               className="inline-flex items-center justify-center gap-1.5 px-4 h-8 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-2xs transition-all"
             >
-              <span>Sign In / Enter</span>
+              <span>Enter Platform</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
@@ -97,7 +97,7 @@ export default function LandingPage() {
               className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-medium transition-all hover:border-blue-500 mb-8 shadow-2xs"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
-              <span>DocVerify v2.4 • Next-Gen Contextual Forensics engine live</span>
+              <span>officedocuments v2.4 • Next-Gen Contextual Forensics engine live</span>
               <ArrowRight className="w-3.5 h-3.5 text-zinc-400" />
             </a>
 
@@ -114,7 +114,7 @@ export default function LandingPage() {
             {/* Hero Actions */}
             <div className="flex flex-col sm:flex-row items-center gap-3 mb-8 w-full sm:w-auto">
               <Link
-                href="/login"
+                href="/dashboard"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 h-10 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition-all shadow-sm shadow-blue-500/25"
               >
                 <span>Enter Platform</span>
@@ -230,7 +230,7 @@ export default function LandingPage() {
               Architected for deep forensic depth and strict regulatory scrutiny.
             </h2>
             <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 max-w-xl mt-2">
-              Move beyond superficial OCR. DocVerify applies structural, lexical, and cryptographic integrity engines simultaneously.
+              Move beyond superficial OCR. officedocuments applies structural, lexical, and cryptographic integrity engines simultaneously.
             </p>
           </div>
 
@@ -408,7 +408,7 @@ export default function LandingPage() {
             </div>
             <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
               <Link
-                href="/login"
+                href="/dashboard"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 h-10 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition-all shadow-sm shadow-blue-500/25"
               >
                 <span>Launch Console</span>
@@ -422,7 +422,7 @@ export default function LandingPage() {
       {/* Enterprise Footer */}
       <footer className="w-full bg-white dark:bg-zinc-950 border-t border-zinc-200/80 dark:border-zinc-800 py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-zinc-500">
-          <div>© 2026 DocVerify Enterprise Security Operations. All rights reserved.</div>
+          <div>© 2026 officedocuments Enterprise Security Operations. All rights reserved.</div>
           <div className="flex items-center gap-4 font-mono text-[10px]">
             <span>NIST SP 800-63B</span>
             <span>•</span>

@@ -118,7 +118,7 @@ export default function HeaderTaskbar({
 
           {/* Breadcrumb Trail */}
           <nav className="hidden sm:flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400 truncate">
-            <span className="hover:text-zinc-800 dark:hover:text-zinc-200 font-medium">DocVerify</span>
+            <span className="hover:text-zinc-800 dark:hover:text-zinc-200 font-medium">officedocuments</span>
             <span className="text-zinc-300 dark:text-zinc-700">/</span>
             <span className="text-zinc-900 dark:text-zinc-100 font-medium truncate">
               {tabLabels[activeTab] || "Workspace"}

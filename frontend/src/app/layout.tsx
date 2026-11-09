@@ -3,7 +3,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "DocVerify — Enterprise Document Forensics & Intelligence",
+  title: "officedocuments — Enterprise Document Forensics & Intelligence",
   description:
     "Enterprise-grade forensic audit system, ELA visual analysis, cryptographic chain verification, and RAG intelligence.",
 };

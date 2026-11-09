@@ -57,7 +57,7 @@ MAX_PAGES = 100
 MAX_RAW_TEXT_LEN = 500_000
 
 app = FastAPI(
-    title="Document Forensics API",
+    title="OfficeDocuments Forensics API",
     description="Enterprise-scale Document Forensics with Smart Routing, Asynchronous Background Processing, RAG Vectorization, and Cross-Document Forensic Auditing.",
     version="2.0.0",
 )
@@ -251,7 +251,7 @@ async def background_process_document(
 @app.get("/", tags=["Root"])
 async def root():
     return {
-        "message": "Document Forensics API (Asynchronous RAG Enterprise Edition) is online",
+        "message": "OfficeDocuments Forensics API (Asynchronous RAG Enterprise Edition) is online",
         "docs": "/docs",
     }
 
@@ -375,7 +375,7 @@ async def login_for_access_token(
             "email": user["email"],
             "full_name": user.get("full_name", "Forensic Investigator"),
             "role": user.get("role", "Lead Forensic Investigator"),
-            "organization": user.get("organization", "DocVerify Enterprise Security"),
+            "organization": user.get("organization", "officedocuments Enterprise Security"),
             "created_at": user.get("created_at", datetime.now(timezone.utc).isoformat()),
         },
     }
@@ -388,7 +388,7 @@ async def get_my_profile(current_user: Dict[str, Any] = Depends(get_current_user
         "email": current_user["email"],
         "full_name": current_user.get("full_name", "Forensic Investigator"),
         "role": current_user.get("role", "Lead Forensic Investigator"),
-        "organization": current_user.get("organization", "DocVerify Enterprise Security"),
+        "organization": current_user.get("organization", "officedocuments Enterprise Security"),
         "created_at": current_user.get("created_at", ""),
     }
 

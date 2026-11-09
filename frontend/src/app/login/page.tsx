@@ -34,11 +34,9 @@ export default function LoginPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // If already authenticated, redirect to /dashboard
+  // Direct platform entry: automatically navigate directly to dashboard
   useEffect(() => {
-    if (isAuthenticated()) {
-      router.replace("/dashboard");
-    }
+    router.replace("/dashboard");
   }, [router]);
 
   // One-click Auto-fill test credentials

@@ -88,7 +88,7 @@ export default function Sidebar({
             {!collapsed && (
               <div className="flex flex-col min-w-0">
                 <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight truncate leading-tight">
-                  DocVerify
+                  officedocuments
                 </span>
                 <span className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate leading-tight font-medium">
                   Enterprise Node v2.4
