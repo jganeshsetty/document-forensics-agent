@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { API_BASE } from "@/lib/api";
+import { API_BASE, getAuthHeaders } from "@/lib/api";
 
 interface JobResult {
   job_id: string;
@@ -30,7 +30,9 @@ export default function UploadZone() {
   const pollJob = useCallback(async (jobId: string) => {
     const poll = async () => {
       try {
-        const res = await fetch(`${API_BASE}/jobs/${jobId}`);
+        const res = await fetch(`${API_BASE}/jobs/${jobId}`, {
+          headers: getAuthHeaders(),
+        });
         const data = await res.json();
 
         if (data.status === "completed") {
@@ -59,6 +61,7 @@ export default function UploadZone() {
     try {
       const res = await fetch(`${API_BASE}/extract`, {
         method: "POST",
+        headers: getAuthHeaders(),
         body: formData,
       });
       const data = await res.json();

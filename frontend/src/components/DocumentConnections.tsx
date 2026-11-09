@@ -47,6 +47,28 @@ export default function DocumentConnections({
   const [selectedItem, setSelectedItem] = useState<SelectedNodeItem | null>(null);
   const [fullDocsMap, setFullDocsMap] = useState<Record<string, DocumentRecord>>({});
 
+  const activeMindmapDoc = useMemo(() => {
+    if (selectedItem?.type === "document") {
+      const full = fullDocsMap[selectedItem.doc.document_id];
+      return full || selectedItem.doc;
+    }
+    const first = docs[0];
+    if (first) {
+      return fullDocsMap[first.document_id] || first;
+    }
+    return null;
+  }, [selectedItem, fullDocsMap, docs]);
+
+  useEffect(() => {
+    if (viewMode === "mindmap" && activeMindmapDoc && !fullDocsMap[activeMindmapDoc.document_id]) {
+      fetchDocument(activeMindmapDoc.document_id).then((full) => {
+        if (full) {
+          setFullDocsMap((prev) => ({ ...prev, [full.document_id]: full }));
+        }
+      });
+    }
+  }, [viewMode, activeMindmapDoc, fullDocsMap]);
+
   // Reload function
   const reloadMapData = () => {
     setLoading(true);
@@ -330,14 +352,34 @@ export default function DocumentConnections({
               </button>
             </div>
           ) : viewMode === "mindmap" ? (
-            <div className="relative z-10 w-full">
+            <div className="relative z-10 w-full space-y-3">
+              {docs.length > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3.5 py-2 shadow-2xs">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-medium text-zinc-500">Document Focus:</span>
+                    <select
+                      value={activeMindmapDoc?.document_id || ""}
+                      onChange={(e) => {
+                        const target = docs.find((d) => d.document_id === e.target.value);
+                        if (target) handleSelectDoc(target);
+                      }}
+                      className="h-7 px-2 text-xs bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-blue-600 max-w-[240px] truncate"
+                    >
+                      {docs.map((d) => (
+                        <option key={d.document_id} value={d.document_id}>
+                          {d.filename}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <span className="text-[10px] text-zinc-400">
+                    {(activeMindmapDoc?.entities?.length || 0)} entity nodes mapped
+                  </span>
+                </div>
+              )}
               <MindmapView
-                filename={selectedItem?.type === "document" ? selectedItem.doc.filename : docs[0]?.filename}
-                entities={
-                  selectedItem?.type === "document"
-                    ? fullDocsMap[selectedItem.doc.document_id]?.entities || selectedItem.doc.entities
-                    : docs[0]?.entities
-                }
+                filename={activeMindmapDoc?.filename || "Document"}
+                entities={activeMindmapDoc?.entities || []}
               />
             </div>
           ) : loading ? (

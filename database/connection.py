@@ -14,14 +14,15 @@ documents_collection: Optional[AsyncIOMotorCollection] = None
 
 async def connect_to_mongo():
     global client, db, documents_collection
-    if not MONGO_URI:
-        raise ValueError("MONGO_URI environment variable is not configured.")
+    if not MONGO_URI or "<" in MONGO_URI or "placeholder" in MONGO_URI.lower():
+        print("Notice: MONGO_URI is a placeholder template. Using local JSON database fallback.")
+        return
     
     # Use certifi.where() to provide trusted CA root certificates for SSL/TLS on Windows
     client = AsyncIOMotorClient(
         MONGO_URI,
         tlsCAFile=certifi.where(),
-        serverSelectionTimeoutMS=10000,
+        serverSelectionTimeoutMS=5000,
     )
     db = client["forensics_db"]
     documents_collection = db["documents"]

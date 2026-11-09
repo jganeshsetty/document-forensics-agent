@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import RiskGauge from "./RiskGauge";
-import { API_BASE, riskColor, riskLabel, type InvestigationDossier } from "@/lib/api";
+import { API_BASE, getAuthHeaders, riskColor, riskLabel, type InvestigationDossier } from "@/lib/api";
 
 export default function DossierView() {
   const [docIds, setDocIds] = useState<string[]>([""]);
@@ -29,7 +29,7 @@ export default function DossierView() {
     try {
       const res = await fetch(`${API_BASE}/analyze`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ document_ids: ids }),
       });
       const data = await res.json();

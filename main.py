@@ -131,6 +131,8 @@ async def background_process_document(
     8. Updates job status to 'completed'
     """
     try:
+        if job_id not in jobs_registry:
+            jobs_registry[job_id] = {"job_id": job_id, "document_id": document_id}
         jobs_registry[job_id]["status"] = "processing"
         jobs_registry[job_id]["started_at"] = datetime.now(timezone.utc).isoformat()
 
@@ -239,6 +241,8 @@ async def background_process_document(
             "pii_findings_count": len(pii_findings),
         }
     except Exception as exc:
+        if job_id not in jobs_registry:
+            jobs_registry[job_id] = {"job_id": job_id, "document_id": document_id}
         jobs_registry[job_id]["status"] = "failed"
         jobs_registry[job_id]["error"] = str(exc)
         print(f"Background processing job '{job_id}' failed: {exc}")
@@ -398,7 +402,7 @@ async def test_db_insert(payload: Optional[DummyDocument] = None):
             content={"error": "Database connection is not initialized."},
         )
 
-    doc_data = payload.dict() if payload else {
+    doc_data = (payload.model_dump() if hasattr(payload, "model_dump") else payload.dict()) if payload else {
         "title": "Test Forensic Document",
         "file_type": "pdf",
         "status": "pending_analysis",
@@ -544,6 +548,7 @@ async def list_documents(current_user: Dict[str, Any] = Depends(get_current_user
                 "created_at": d.get("created_at"),
                 "total_pages": d.get("total_pages", 1),
                 "total_entities": len(d.get("entities", [])),
+                "entities": d.get("entities", [])[:50],
                 "total_rag_chunks": d.get("total_rag_chunks", 0),
                 "pii_findings_count": len(d.get("pii_findings", [])),
                 "file_size": file_size_bytes,
@@ -572,6 +577,7 @@ async def list_documents(current_user: Dict[str, Any] = Depends(get_current_user
                             "created_at": d.get("created_at"),
                             "total_pages": d.get("total_pages", 1),
                             "total_entities": len(d.get("entities", [])),
+                "entities": d.get("entities", [])[:50],
                             "total_rag_chunks": d.get("total_rag_chunks", 0),
                             "pii_findings_count": len(d.get("pii_findings", [])),
                             "file_size": file_size_bytes,
@@ -855,21 +861,40 @@ async def chat_with_document(
     )
 
     if not rag_chunks:
-        return {
-            "question": payload.question,
-            "answer": "No relevant document content found for your question. Try rephrasing or uploading the document first.",
-            "context_used": [],
-            "source_document_id": doc_id,
-        }
+        # Fallback to document raw_text or entities if vector chunks are not yet indexed
+        raw = doc.get("raw_text", "").strip()
+        if raw:
+            rag_chunks = [{
+                "chunk_id": f"{doc_id}-raw",
+                "text": raw[:3000],
+                "distance": 0.05,
+                "metadata": {"source": "direct_document_text", "filename": doc.get("filename", "")},
+            }]
+        elif doc.get("entities"):
+            ent_summary = ", ".join([e.get("text", "") for e in doc.get("entities", [])[:20] if e.get("text")])
+            rag_chunks = [{
+                "chunk_id": f"{doc_id}-entities",
+                "text": f"Document entities: {ent_summary}",
+                "distance": 0.1,
+                "metadata": {"source": "entities_summary"},
+            }]
+        else:
+            return {
+                "question": payload.question,
+                "answer": "No relevant document text or forensic features found. Try re-uploading the document or rephrasing your inquiry.",
+                "context_used": [],
+                "source_document_id": doc_id,
+            }
 
     context_text = "\n---\n".join([c["text"] for c in rag_chunks])
 
     # Call Groq LLM for grounded answer
     groq_api_key = os.getenv("GROQ_API_KEY")
-    if not groq_api_key or groq_api_key.strip() in ["", "gsk_..."]:
+    if not groq_api_key or groq_api_key.strip() in ["", "gsk_...", "gsk_your_groq_api_key_here"]:
+        # Grounded heuristic answer when GROQ_API_KEY is not supplied
         return {
             "question": payload.question,
-            "answer": "GROQ_API_KEY is not configured. Cannot generate LLM-based answer.",
+            "answer": f"Grounded Context Findings for '{payload.question}':\n\n{context_text[:600]}\n\n(Configure GROQ_API_KEY for advanced multi-hop LLM contextual reasoning).",
             "context_used": rag_chunks,
             "source_document_id": doc_id,
         }

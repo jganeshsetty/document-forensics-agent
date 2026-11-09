@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { API_BASE, type ChatResponse } from "@/lib/api";
+import { API_BASE, getAuthHeaders, type ChatResponse } from "@/lib/api";
 
 export default function ChatView() {
   const [docId, setDocId] = useState("");
@@ -28,7 +28,7 @@ export default function ChatView() {
     try {
       const res = await fetch(`${API_BASE}/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ document_id: docId, question, n_results: 5 }),
       });
       const data: ChatResponse = await res.json();

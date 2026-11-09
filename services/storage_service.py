@@ -32,7 +32,7 @@ class GCSStorageService:
             return
 
         creds_json = os.getenv("GOOGLE_APPLICATION_CREDENTIALS_JSON", "").strip()
-        if creds_json:
+        if creds_json and "your-gcp-project-id" not in creds_json and "placeholder" not in creds_json:
             try:
                 info = json.loads(creds_json)
                 credentials = service_account.Credentials.from_service_account_info(info)

@@ -14,7 +14,7 @@ import {
   Cpu,
   ChevronRight,
 } from "lucide-react";
-import { DocumentRecord, fetchDocuments } from "@/lib/api";
+import { DocumentRecord, fetchDocuments, API_BASE } from "@/lib/api";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -180,7 +180,9 @@ export default function Sidebar({
                 <span className="flex items-center gap-1">
                   <Server className="w-2.5 h-2.5" /> FastAPI Engine
                 </span>
-                <span className="text-emerald-600 dark:text-emerald-400 font-medium">8000</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                  {API_BASE.includes("run.app") ? "Cloud Run" : "Active"}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-1">

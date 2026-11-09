@@ -9,6 +9,7 @@ import ReactFlow, {
   MarkerType,
   useNodesState,
   useEdgesState,
+  ReactFlowProvider,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { AlertTriangle, RotateCcw, Network } from "lucide-react";
@@ -149,13 +150,15 @@ function InnerMindmapView({
       const entityEdges: Edge[] = [];
       const groupedByType: Record<string, (EntityNode | DocumentEntity)[]> = {};
 
-      entities.forEach((ent) => {
-        if (!ent) return;
+      entities.forEach((rawEnt, idx) => {
+        if (!rawEnt) return;
+        const ent: EntityNode =
+          typeof rawEnt === "string"
+            ? { text: rawEnt, text_type: "Body" }
+            : (rawEnt as EntityNode);
         const type =
           ent.text_type ||
-          ("type" in ent && typeof (ent as EntityNode).type === "string"
-            ? ((ent as EntityNode).type as string)
-            : "Body");
+          (typeof ent.type === "string" ? ent.type : "Body");
         if (!groupedByType[type]) groupedByType[type] = [];
         groupedByType[type].push(ent);
       });
@@ -306,11 +309,13 @@ function InnerMindmapView({
   );
 }
 
-// Export wrapped in ErrorBoundary
+// Export wrapped in ErrorBoundary & ReactFlowProvider
 export default function MindmapView(props: { filename?: string; entities?: (EntityNode | DocumentEntity)[] }) {
   return (
     <MindmapErrorBoundary>
-      <InnerMindmapView {...props} />
+      <ReactFlowProvider>
+        <InnerMindmapView {...props} />
+      </ReactFlowProvider>
     </MindmapErrorBoundary>
   );
 }

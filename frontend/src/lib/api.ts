@@ -1,4 +1,5 @@
-export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const rawApiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+export const API_BASE = rawApiBase.replace(/\/+$/, "");
 
 export interface DocumentEntity {
   text: string;
@@ -262,7 +263,7 @@ export function logout() {
   window.location.replace("/login");
 }
 
-function getAuthHeaders(extraHeaders: Record<string, string> = {}): Record<string, string> {
+export function getAuthHeaders(extraHeaders: Record<string, string> = {}): Record<string, string> {
   const token = getAuthToken();
   const headers: Record<string, string> = { ...extraHeaders };
   if (token) {

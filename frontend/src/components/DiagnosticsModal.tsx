@@ -24,7 +24,7 @@ export default function DiagnosticsModal({ isOpen, onClose }: DiagnosticsModalPr
       name: "FastAPI Core Engine",
       status: "online",
       latency: 18,
-      details: "REST & ELA Image Processing Pipelines active (:8000)",
+      details: "REST & ELA Image Processing Pipelines active",
       icon: Server,
     },
     {
@@ -69,7 +69,7 @@ export default function DiagnosticsModal({ isOpen, onClose }: DiagnosticsModalPr
       setServices((prev) =>
         prev.map((s) =>
           s.name.includes("FastAPI")
-            ? { ...s, status: "degraded", latency: 999, details: "Failed to connect to FastAPI :8000" }
+            ? { ...s, status: "degraded", latency: 999, details: `Failed to connect to backend (${API_BASE})` }
             : s
         )
       );

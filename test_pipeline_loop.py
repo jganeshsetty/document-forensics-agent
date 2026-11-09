@@ -19,7 +19,7 @@ from services.extraction_service import (
 )
 from services.analysis_service import run_ela_analysis, cross_verify_documents
 from services.rag_service import chunk_and_vectorize_document, query_relevant_chunks
-from services.storage_service import StorageBackend
+from services.storage_service import storage_service, GCSStorageService
 
 UPLOADS_DIR = Path("uploads")
 

@@ -53,14 +53,16 @@ export default function AssistantChat({
     fetchDocuments().then((docs) => {
       if (!isMounted) return;
       setDocuments(docs);
-      if (!selectedDocId && !initialDocId && docs.length > 0) {
-        setSelectedDocId(docs[0].document_id);
+      if (initialDocId) {
+        setSelectedDocId(initialDocId);
+      } else if (docs.length > 0) {
+        setSelectedDocId((prev) => prev || docs[0].document_id);
       }
     });
     return () => {
       isMounted = false;
     };
-  }, [selectedDocId, initialDocId]);
+  }, [initialDocId]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
